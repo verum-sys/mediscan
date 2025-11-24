@@ -14,7 +14,211 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          created_at: string | null
+          document_id: string | null
+          elapsed_ms: number | null
+          error_message: string | null
+          file_name: string | null
+          id: string
+          module_id: string | null
+          status: Database["public"]["Enums"]["document_status"] | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_id?: string | null
+          elapsed_ms?: number | null
+          error_message?: string | null
+          file_name?: string | null
+          id?: string
+          module_id?: string | null
+          status?: Database["public"]["Enums"]["document_status"] | null
+        }
+        Update: {
+          created_at?: string | null
+          document_id?: string | null
+          elapsed_ms?: number | null
+          error_message?: string | null
+          file_name?: string | null
+          id?: string
+          module_id?: string | null
+          status?: Database["public"]["Enums"]["document_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          cleaned_text: string | null
+          clinic_name: string | null
+          created_at: string | null
+          department: string | null
+          diagnosis: string | null
+          doctor_name: string | null
+          dosage: string | null
+          filename: string
+          hospital_name: string | null
+          id: string
+          module_id: string | null
+          prescribed_medicines: string | null
+          processing_method:
+            | Database["public"]["Enums"]["processing_method"]
+            | null
+          processing_time_ms: number | null
+          raw_text: string | null
+          report_generated_date: string | null
+          sample_collection_date: string | null
+          status: Database["public"]["Enums"]["document_status"] | null
+          symptoms: string | null
+          test_name: string | null
+          test_results: string | null
+        }
+        Insert: {
+          cleaned_text?: string | null
+          clinic_name?: string | null
+          created_at?: string | null
+          department?: string | null
+          diagnosis?: string | null
+          doctor_name?: string | null
+          dosage?: string | null
+          filename: string
+          hospital_name?: string | null
+          id?: string
+          module_id?: string | null
+          prescribed_medicines?: string | null
+          processing_method?:
+            | Database["public"]["Enums"]["processing_method"]
+            | null
+          processing_time_ms?: number | null
+          raw_text?: string | null
+          report_generated_date?: string | null
+          sample_collection_date?: string | null
+          status?: Database["public"]["Enums"]["document_status"] | null
+          symptoms?: string | null
+          test_name?: string | null
+          test_results?: string | null
+        }
+        Update: {
+          cleaned_text?: string | null
+          clinic_name?: string | null
+          created_at?: string | null
+          department?: string | null
+          diagnosis?: string | null
+          doctor_name?: string | null
+          dosage?: string | null
+          filename?: string
+          hospital_name?: string | null
+          id?: string
+          module_id?: string | null
+          prescribed_medicines?: string | null
+          processing_method?:
+            | Database["public"]["Enums"]["processing_method"]
+            | null
+          processing_time_ms?: number | null
+          raw_text?: string | null
+          report_generated_date?: string | null
+          sample_collection_date?: string | null
+          status?: Database["public"]["Enums"]["document_status"] | null
+          symptoms?: string | null
+          test_name?: string | null
+          test_results?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      llm_tasks: {
+        Row: {
+          created_at: string | null
+          document_id: string | null
+          id: string
+          model: string | null
+          output: string | null
+          prompt: string | null
+          status: Database["public"]["Enums"]["llm_task_status"] | null
+          tokens_used: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_id?: string | null
+          id?: string
+          model?: string | null
+          output?: string | null
+          prompt?: string | null
+          status?: Database["public"]["Enums"]["llm_task_status"] | null
+          tokens_used?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          document_id?: string | null
+          id?: string
+          model?: string | null
+          output?: string | null
+          prompt?: string | null
+          status?: Database["public"]["Enums"]["llm_task_status"] | null
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "llm_tasks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      modules: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          last_run_at: string | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +227,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      document_status: "pending" | "processing" | "completed" | "failed"
+      llm_task_status: "pending" | "processing" | "completed" | "failed"
+      processing_method: "inline" | "batch" | "image"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +356,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      document_status: ["pending", "processing", "completed", "failed"],
+      llm_task_status: ["pending", "processing", "completed", "failed"],
+      processing_method: ["inline", "batch", "image"],
+    },
   },
 } as const
