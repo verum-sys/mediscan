@@ -6,13 +6,13 @@ export default function Settings() {
   // In a real app, these would be checked against actual connections
   const connections = [
     {
-      name: "Google Document AI",
+      name: "Document Processing Engine",
       status: "connected",
       icon: Cpu,
-      description: "OCR processing engine",
+      description: "Advanced OCR Engine",
     },
     {
-      name: "Lovable AI (Gemini)",
+      name: "Clinical AI Assistant",
       status: "connected",
       icon: Sparkles,
       description: "Text cleaning and structuring",
@@ -77,7 +77,7 @@ export default function Settings() {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Platform</span>
-              <span className="font-medium">Lovable Cloud</span>
+              <span className="font-medium">Cloud Platform</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Backend</span>
@@ -85,11 +85,11 @@ export default function Settings() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">OCR Engine</span>
-              <span className="font-medium">Google Document AI</span>
+              <span className="font-medium">Document Processing Engine</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">LLM Model</span>
-              <span className="font-medium">Gemini 2.5 Flash</span>
+              <span className="font-medium">Clinical LLM v2.5</span>
             </div>
           </div>
         </Card>

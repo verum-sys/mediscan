@@ -48,18 +48,29 @@ export default function Upload() {
       formData.append("moduleId", module);
       formData.append("useLLM", String(useLLM));
 
-      const { data, error } = await supabase.functions.invoke("process-document", {
+      // Use local server instead of Supabase Function
+      const response = await fetch("http://localhost:3001/process-document", {
+        method: "POST",
         body: formData,
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Processing failed");
+      }
+
+      const data = await response.json();
 
       toast({
         title: "Processing Complete",
         description: "Document processed successfully",
       });
 
-      navigate(`/result/${data.documentId}`);
+      if (data.visitId) {
+        navigate(`/visit/${data.visitId}`);
+      } else {
+        navigate(`/result/${data.documentId}`);
+      }
     } catch (error: any) {
       toast({
         title: "Processing Failed",
@@ -132,6 +143,7 @@ export default function Upload() {
                       Document Scanner
                     </div>
                   </SelectItem>
+                  <SelectItem value="medical_prescription">Medical Prescription</SelectItem>
                   <SelectItem value="lab_reports">Lab Reports</SelectItem>
                   <SelectItem value="opd_ipd_forms">OPD/IPD Forms</SelectItem>
                   <SelectItem value="medicine_stock">Medicine Stock</SelectItem>

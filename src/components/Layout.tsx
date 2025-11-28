@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Upload, FileText, Settings, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/mode-toggle";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,14 +22,17 @@ export function Layout({ children }: LayoutProps) {
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border fixed left-0 top-0 bottom-0 flex flex-col">
         <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-hero flex items-center justify-center">
-              <Activity className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-hero flex items-center justify-center">
+                <Activity className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="font-bold text-lg">DiagNXT</h1>
+                <p className="text-xs text-muted-foreground">Clinical Intelligence</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-bold text-lg">DocuHealth</h1>
-              <p className="text-xs text-muted-foreground">AI Platform</p>
-            </div>
+            <ModeToggle />
           </div>
         </div>
 
