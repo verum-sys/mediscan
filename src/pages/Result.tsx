@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,13 +9,28 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Result() {
   const { id } = useParams();
+  const location = useLocation();
   const [document, setDocument] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    loadDocument();
-  }, [id]);
+    if (location.state?.documentData) {
+      const data = location.state.documentData;
+      setDocument({
+        id: data.documentId,
+        filename: data.filename || "Scanned Document",
+        raw_text: data.raw_text,
+        cleaned_text: data.cleaned_text,
+        processing_time_ms: data.processingTime,
+        status: 'completed',
+        processing_method: 'OCR'
+      });
+      setLoading(false);
+    } else {
+      loadDocument();
+    }
+  }, [id, location.state]);
 
   const loadDocument = async () => {
     try {

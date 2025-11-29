@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, X, Check, RefreshCw } from "lucide-react";
+import { Camera, X, Check, RefreshCw, Upload } from "lucide-react";
 
 export default function CameraOCR() {
     const navigate = useNavigate();
@@ -113,7 +113,7 @@ export default function CameraOCR() {
 
             // Navigate to result page
             setTimeout(() => {
-                navigate(`/result/${data.documentId}`);
+                navigate(`/result/${data.documentId}`, { state: { documentData: data } });
             }, 500);
 
         } catch (error) {
@@ -161,10 +161,40 @@ export default function CameraOCR() {
                         <p className="text-muted-foreground mb-6">
                             We need camera access to scan medical documents
                         </p>
-                        <Button onClick={startCamera} size="lg" className="w-full">
-                            <Camera className="h-5 w-5 mr-2" />
-                            Start Camera
-                        </Button>
+                        <div className="flex flex-col gap-3 w-full">
+                            <Button onClick={startCamera} size="lg" className="w-full">
+                                <Camera className="h-5 w-5 mr-2" />
+                                Start Camera
+                            </Button>
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                    <span className="bg-background px-2 text-muted-foreground">Or</span>
+                                </div>
+                            </div>
+                            <Button variant="outline" size="lg" className="w-full" onClick={() => document.getElementById('file-upload')?.click()}>
+                                <Upload className="h-5 w-5 mr-2" />
+                                Upload Document
+                            </Button>
+                            <input
+                                id="file-upload"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                            setCapturedImage(reader.result as string);
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
+                            />
+                        </div>
                     </Card>
                 )}
 

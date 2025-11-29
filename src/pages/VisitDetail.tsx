@@ -18,7 +18,8 @@ import {
     AlertTriangle,
     Clock,
     Mic,
-    FileText
+    FileText,
+    Upload
 } from "lucide-react";
 
 interface Visit {
@@ -67,6 +68,13 @@ interface Alert {
     created_at: string;
 }
 
+interface Medication {
+    id: string;
+    medication_name: string;
+    date_prescribed: string;
+    source: string;
+}
+
 export default function VisitDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -74,13 +82,31 @@ export default function VisitDetail() {
 
     const [visit, setVisit] = useState<Visit | null>(null);
     const [symptoms, setSymptoms] = useState<Symptom[]>([]);
+    const [medications, setMedications] = useState<Medication[]>([]);
     const [differentials, setDifferentials] = useState<Differential[]>([]);
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingSymptom, setEditingSymptom] = useState<string | null>(null);
     const [newSymptom, setNewSymptom] = useState("");
+    const [newMedName, setNewMedName] = useState("");
+    const [newMedDays, setNewMedDays] = useState(1);
     const [clinicalAnalysis, setClinicalAnalysis] = useState<any>(null);
     const [analyzing, setAnalyzing] = useState(false);
+    const [isEditingHeader, setIsEditingHeader] = useState(false);
+    const [editedVisitNumber, setEditedVisitNumber] = useState("");
+    const [editedDepartment, setEditedDepartment] = useState("");
+    const [editedProviderName, setEditedProviderName] = useState("");
+
+    const departments = [
+        "General Medicine",
+        "Cardiology",
+        "Neurology",
+        "Orthopedics",
+        "Pediatrics",
+        "Emergency",
+        "Dermatology",
+        "Clinical Decision Support"
+    ];
 
     const generateAnalysis = async () => {
         setAnalyzing(true);
@@ -117,9 +143,15 @@ export default function VisitDetail() {
             if (response.ok) {
                 const data = await response.json();
                 setVisit(data.visit);
-                setSymptoms(data.symptoms || []);
-                setDifferentials(data.differentials || []);
-                setAlerts(data.alerts || []);
+                setSymptoms(data.symptoms);
+                setMedications(data.medications || []);
+                setDifferentials(data.differentials);
+                setAlerts(data.alerts);
+
+                // Initialize edit state
+                setEditedVisitNumber(data.visit.visit_number);
+                setEditedDepartment(data.visit.department);
+                setEditedProviderName(data.visit.provider_name);
             }
         } catch (error) {
             toast({
@@ -175,7 +207,6 @@ export default function VisitDetail() {
 
     const addSymptom = async () => {
         if (!newSymptom.trim()) return;
-
         try {
             const response = await fetch(`http://192.168.1.6:3003/api/visits/${id}/symptoms`, {
                 method: 'POST',
@@ -183,21 +214,117 @@ export default function VisitDetail() {
                 body: JSON.stringify({
                     symptoms: [{
                         text: newSymptom,
-                        confidenceScore: 90,
+                        confidenceScore: 100,
+                        source: 'manual',
+                        rawText: newSymptom
+                    }]
+                })
+            });
+
+            if (response.ok) {
+                const added = await response.json();
+                setSymptoms([...symptoms, ...added]);
+                setNewSymptom("");
+                toast({ title: "Symptom added" });
+            }
+        } catch (error) {
+            toast({ title: "Error adding symptom", variant: "destructive" });
+        }
+    };
+
+    const handleAddMedication = async () => {
+        if (!newMedName.trim()) return;
+        try {
+            const response = await fetch(`http://192.168.1.6:3003/api/visits/${id}/medications`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    medications: [{
+                        name: newMedName,
+                        date: newMedDays.toString(), // Store days as string in date field for now
                         source: 'manual'
                     }]
                 })
             });
 
             if (response.ok) {
-                toast({ title: "Symptom added" });
-                setNewSymptom("");
-                loadVisit();
+                const added = await response.json();
+                setMedications([...medications, ...added]);
+                setNewMedName("");
+                setNewMedDays(1);
+                toast({ title: "Medication added" });
+            }
+        } catch (error) {
+            toast({ title: "Error adding medication", variant: "destructive" });
+        }
+    };
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+        // Pass the current visit ID to link/update this specific visit
+        formData.append('visitId', id || '');
+
+        setLoading(true);
+        try {
+            const response = await fetch('http://192.168.1.6:3003/process-document', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                toast({
+                    title: "Document Processed",
+                    description: "Clinical report updated successfully."
+                });
+                loadVisit(); // Reload to show new notes
+            } else {
+                throw new Error('Upload failed');
             }
         } catch (error) {
             toast({
                 title: "Error",
-                description: "Failed to add symptom",
+                description: "Failed to process document",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveHeader = async () => {
+        try {
+            const response = await fetch(`http://192.168.1.6:3003/api/visits/${id}`, {
+                method: 'PATCH', // Assuming PATCH is supported for updates
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    visit_number: editedVisitNumber,
+                    department: editedDepartment,
+                    provider_name: editedProviderName
+                })
+            });
+
+            if (response.ok) {
+                const updatedVisit = await response.json();
+                setVisit(prev => prev ? {
+                    ...prev,
+                    visit_number: editedVisitNumber,
+                    department: editedDepartment,
+                    provider_name: editedProviderName
+                } : null);
+                setIsEditingHeader(false);
+                toast({ title: "Visit details updated" });
+            } else {
+                throw new Error("Failed to update");
+            }
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to update visit details",
                 variant: "destructive"
             });
         }
@@ -238,10 +365,48 @@ export default function VisitDetail() {
                         Back
                     </Button>
                     <div className="flex-1">
-                        <h1 className="text-3xl font-bold">{visit.visit_number}</h1>
-                        <p className="text-muted-foreground">
-                            {visit.facility_name} • {visit.department}
-                        </p>
+                        {isEditingHeader ? (
+                            <div className="flex flex-col gap-2 max-w-md">
+                                <Input
+                                    value={editedVisitNumber}
+                                    onChange={(e) => setEditedVisitNumber(e.target.value)}
+                                    placeholder="Visit Number / Patient ID"
+                                    className="text-lg font-bold"
+                                />
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={editedProviderName}
+                                        onChange={(e) => setEditedProviderName(e.target.value)}
+                                        placeholder="Doctor Name"
+                                        className="w-1/2"
+                                    />
+                                    <Select value={editedDepartment} onValueChange={setEditedDepartment}>
+                                        <SelectTrigger className="w-1/2">
+                                            <SelectValue placeholder="Select Department" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {departments.map(dept => (
+                                                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="flex gap-2 mt-2">
+                                    <Button size="sm" onClick={handleSaveHeader}>Save</Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setIsEditingHeader(false)}>Cancel</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="group cursor-pointer" onClick={() => setIsEditingHeader(true)}>
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-3xl font-bold group-hover:text-primary transition-colors">{visit.visit_number}</h1>
+                                    <Edit className="h-4 w-4 opacity-0 group-hover:opacity-50" />
+                                </div>
+                                <p className="text-muted-foreground">
+                                    {visit.provider_name} • {visit.department}
+                                </p>
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
                         <Badge variant={visit.status === 'completed' ? 'default' : 'secondary'}>
@@ -336,6 +501,71 @@ export default function VisitDetail() {
                     </div>
                 </Card>
 
+                {/* Medications Panel */}
+                <Card className="glass-card p-6 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-semibold">Medications</h2>
+                        <Badge variant="outline">{medications.length} records</Badge>
+                    </div>
+
+                    <div className="space-y-3 mb-4">
+                        {medications.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">No medical history recorded.</p>
+                        ) : (
+                            medications.map((med) => (
+                                <div key={med.id} className="p-3 rounded-lg border bg-muted/30 flex justify-between items-center">
+                                    <div>
+                                        <p className="font-medium">{med.medication_name}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Duration: {med.date_prescribed} days • Source: {med.source}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Add Medication */}
+                    <div className="flex gap-2 items-end">
+                        <div className="flex-1">
+                            <label className="text-xs text-muted-foreground mb-1 block">Medication Name</label>
+                            <Input
+                                placeholder="e.g. Metformin 500mg"
+                                value={newMedName}
+                                onChange={(e) => setNewMedName(e.target.value)}
+                            />
+                        </div>
+                        <div className="w-1/3">
+                            <label className="text-xs text-muted-foreground mb-1 block">Duration (Days)</label>
+                            <div className="flex items-center">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-10 w-10 rounded-r-none"
+                                    onClick={() => setNewMedDays(prev => Math.max(1, prev - 1))}
+                                >
+                                    -
+                                </Button>
+                                <div className="h-10 flex-1 flex items-center justify-center border-y border-input bg-background">
+                                    {newMedDays}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-10 w-10 rounded-l-none"
+                                    onClick={() => setNewMedDays(prev => prev + 1)}
+                                >
+                                    +
+                                </Button>
+                            </div>
+                        </div>
+                        <Button onClick={handleAddMedication}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add
+                        </Button>
+                    </div>
+                </Card>
+
                 {/* Differentials Panel */}
                 <Card className="glass-card p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
@@ -414,7 +644,19 @@ export default function VisitDetail() {
                 <Card className="glass-card p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold">Full Clinical Report</h2>
-                        <Badge variant="outline">Extracted from Document</Badge>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="file"
+                                id="report-upload"
+                                className="hidden"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={handleFileUpload}
+                            />
+                            <Button variant="outline" size="sm" onClick={() => document.getElementById('report-upload')?.click()}>
+                                <Upload className="h-4 w-4 mr-2" />
+                                Upload Document
+                            </Button>
+                        </div>
                     </div>
                     <div className="bg-muted/30 p-6 rounded-lg font-mono text-sm whitespace-pre-wrap leading-relaxed">
                         {visit.visit_notes || "No report text available."}
@@ -462,7 +704,11 @@ export default function VisitDetail() {
                                                     {clinicalAnalysis.patient_analysis.Age}/{clinicalAnalysis.patient_analysis.Sex}
                                                 </td>
                                                 <td className="px-4 py-3">{clinicalAnalysis.patient_analysis.Chief_Complaint}</td>
-                                                <td className="px-4 py-3">{clinicalAnalysis.patient_analysis.Symptoms}</td>
+                                                <td className="px-4 py-3">
+                                                    {Array.isArray(clinicalAnalysis.patient_analysis.Symptoms)
+                                                        ? clinicalAnalysis.patient_analysis.Symptoms.join(', ')
+                                                        : clinicalAnalysis.patient_analysis.Symptoms}
+                                                </td>
                                                 <td className="px-4 py-3">{clinicalAnalysis.patient_analysis.Treatment_Plan}</td>
                                                 <td className="px-4 py-3">
                                                     <Badge variant="outline">{clinicalAnalysis.patient_analysis.Effectiveness_Prediction}</Badge>

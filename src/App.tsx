@@ -10,11 +10,12 @@ import Upload from "./pages/Upload";
 import Result from "./pages/Result";
 import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
+import Patients from "./pages/Patients";
 import NotFound from "./pages/NotFound";
 import VisitDetail from "./pages/VisitDetail";
 import CameraOCR from "./pages/CameraOCR";
 import Search from "./pages/Search";
-import NewVisit from "./pages/NewVisit";
+
 import DDXTool from "./pages/DDXTool";
 import Triage from "./pages/Triage";
 
@@ -33,12 +34,13 @@ const App = () => (
               <Route path="/upload" element={<Upload />} />
               <Route path="/camera" element={<CameraOCR />} />
               <Route path="/search" element={<Search />} />
-              <Route path="/visit/new" element={<NewVisit />} />
+
               <Route path="/visit/:id" element={<VisitDetail />} />
               <Route path="/ddx" element={<DDXTool />} />
               <Route path="/emergency/triage" element={<Triage />} />
               <Route path="/result/:id" element={<Result />} />
               <Route path="/logs" element={<Logs />} />
+              <Route path="/patients" element={<Patients />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

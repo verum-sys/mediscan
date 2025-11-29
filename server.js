@@ -5,7 +5,7 @@ import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import clinicalRoutes from './routes/clinical.routes.js';
-import { createVisit, addSymptoms } from './services/clinical.service.js';
+import { createVisit, updateVisit, addSymptoms, addMedications } from './services/clinical.service.js';
 
 dotenv.config();
 
@@ -39,10 +39,11 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
     try {
         const file = req.file;
         const moduleId = req.body.moduleId;
+        const visitId = req.body.visitId;
         const useLLM = req.body.useLLM === 'true';
 
-        if (!file || !moduleId) {
-            return res.status(400).json({ error: 'Missing file or moduleId' });
+        if (!file || (!moduleId && !visitId)) {
+            return res.status(400).json({ error: 'Missing file or moduleId/visitId' });
         }
 
         console.log('Processing document:', file.originalname);
@@ -207,7 +208,7 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
         try {
             await supabase.from('audit_logs').insert({
                 document_id: document.id,
-                module_id: moduleId,
+                module_id: moduleId || 'visit-upload',
                 file_name: file.originalname,
                 status: 'completed',
                 elapsed_ms: processingTime,
@@ -232,26 +233,38 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
 
         console.log('Document processed successfully:', document.id);
 
-        // AUTOMATICALLY CREATE VISIT FROM DOCUMENT
-        console.log('Creating visit from processed document...');
-
         const clinicalData = req.parsedClinicalData || {};
+        let visit;
 
-        // Fallback regex if LLM failed to return JSON
-        const facilityMatch = cleanedText.match(/Hospital:?\s*(.*)/i);
-        const deptMatch = cleanedText.match(/Department:?\s*(.*)/i);
-        const providerMatch = cleanedText.match(/Doctor:?\s*(.*)/i);
+        if (visitId) {
+            console.log('Updating existing visit:', visitId);
+            // Update existing visit
+            visit = await updateVisit(visitId, {
+                visitNotes: clinicalData.formatted_text || cleanedText,
+                // We could also update chief complaint if it was empty, but let's stick to notes for now
+            });
+            // Ensure we have an object with ID for response
+            if (!visit) visit = { id: visitId };
+        } else {
+            // AUTOMATICALLY CREATE VISIT FROM DOCUMENT
+            console.log('Creating visit from processed document...');
 
-        const visit = await createVisit({
-            facilityName: clinicalData.facility_name || (facilityMatch ? facilityMatch[1] : 'Unknown Facility'),
-            department: clinicalData.department || (deptMatch ? deptMatch[1] : 'General'),
-            providerName: clinicalData.doctor_name || (providerMatch ? providerMatch[1] : 'Unknown Provider'),
-            chiefComplaint: clinicalData.symptoms?.map(s => s.text).join(', ') || 'Extracted from document',
-            visitNotes: clinicalData.formatted_text || cleanedText,
-            sourceType: 'ocr',
-            sourceDocumentId: document.id,
-            confidenceScore: 85
-        });
+            // Fallback regex if LLM failed to return JSON
+            const facilityMatch = cleanedText.match(/Hospital:?\s*(.*)/i);
+            const deptMatch = cleanedText.match(/Department:?\s*(.*)/i);
+            const providerMatch = cleanedText.match(/Doctor:?\s*(.*)/i);
+
+            visit = await createVisit({
+                facilityName: clinicalData.facility_name || (facilityMatch ? facilityMatch[1] : 'Unknown Facility'),
+                department: clinicalData.department || (deptMatch ? deptMatch[1] : 'General'),
+                providerName: clinicalData.doctor_name || (providerMatch ? providerMatch[1] : 'Unknown Provider'),
+                chiefComplaint: clinicalData.symptoms?.map(s => s.text).join(', ') || 'Extracted from document',
+                visitNotes: clinicalData.formatted_text || cleanedText,
+                sourceType: 'ocr',
+                sourceDocumentId: document.id,
+                confidenceScore: 85
+            });
+        }
 
         // Add symptoms from structured data
         if (clinicalData.symptoms && clinicalData.symptoms.length > 0) {
@@ -276,6 +289,9 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
             documentId: document.id,
             visitId: visit.id,
             processingTime,
+            raw_text: document.raw_text,
+            cleaned_text: document.cleaned_text,
+            filename: document.filename
         });
 
     } catch (error) {

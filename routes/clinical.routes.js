@@ -13,6 +13,15 @@ router.get('/stats', async (req, res) => {
     }
 });
 
+router.get('/analytics', async (req, res) => {
+    try {
+        const analytics = await service.getAnalytics();
+        res.json(analytics);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.get('/queue', async (req, res) => {
     try {
         const queue = await service.getQueue();
@@ -40,9 +49,28 @@ router.get('/visits/:id', async (req, res) => {
     }
 });
 
+router.patch('/visits/:id', async (req, res) => {
+    try {
+        const result = await service.updateVisit(req.params.id, req.body);
+        if (!result) return res.status(404).json({ error: 'Visit not found' });
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.post('/visits/:id/symptoms', async (req, res) => {
     try {
         const result = await service.addSymptoms(req.params.id, req.body.symptoms);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/visits/:id/medications', async (req, res) => {
+    try {
+        const result = await service.addMedications(req.params.id, req.body.medications);
         res.json(result);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -89,6 +117,15 @@ router.post('/chat', async (req, res) => {
     try {
         const response = await service.chatWithAI(req.body.messages);
         res.json({ response });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/chat/summarize', async (req, res) => {
+    try {
+        const result = await service.summarizeConversation(req.body.messages);
+        res.json(result);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
