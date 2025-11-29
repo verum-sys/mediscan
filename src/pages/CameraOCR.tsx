@@ -93,7 +93,7 @@ export default function CameraOCR() {
             formData.append('moduleId', 'document_scanner');
             formData.append('useLLM', 'true');
 
-            const response = await fetch('http://localhost:3001/process-document', {
+            const response = await fetch('http://192.168.1.6:3003/process-document', {
                 method: 'POST',
                 body: formData
             });

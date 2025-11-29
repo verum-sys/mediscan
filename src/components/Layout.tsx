@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Upload, FileText, Settings, Activity } from "lucide-react";
+import { LayoutDashboard, Upload, FileText, Settings, Activity, Siren } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 
@@ -12,6 +12,7 @@ export function Layout({ children }: LayoutProps) {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+    { icon: Siren, label: "Emergency Triage", path: "/emergency/triage" },
     { icon: Upload, label: "Upload", path: "/upload" },
     { icon: FileText, label: "Logs", path: "/logs" },
     { icon: Settings, label: "Settings", path: "/settings" },

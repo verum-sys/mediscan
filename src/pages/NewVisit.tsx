@@ -25,7 +25,7 @@ export default function NewVisit() {
         setCreating(true);
 
         try {
-            const response = await fetch('http://localhost:3001/api/visits', {
+            const response = await fetch('http://192.168.1.6:3003/api/visits', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

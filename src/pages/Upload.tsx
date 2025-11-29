@@ -49,7 +49,7 @@ export default function Upload() {
       formData.append("useLLM", String(useLLM));
 
       // Use local server instead of Supabase Function
-      const response = await fetch("http://localhost:3001/process-document", {
+      const response = await fetch("http://192.168.1.6:3003/process-document", {
         method: "POST",
         body: formData,
       });

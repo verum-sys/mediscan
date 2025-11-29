@@ -67,6 +67,24 @@ router.post('/visits/:id/analysis', async (req, res) => {
     }
 });
 
+router.post('/triage', async (req, res) => {
+    try {
+        const result = await service.createTriageAssessment(req.body);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/triage/queue', async (req, res) => {
+    try {
+        const result = await service.getTriageQueue();
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.post('/chat', async (req, res) => {
     try {
         const response = await service.chatWithAI(req.body.messages);

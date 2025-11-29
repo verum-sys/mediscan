@@ -446,6 +446,32 @@ export const generateDifferentials = async (visitId) => {
     }
 };
 
+const mockTriageStore = new Map();
+
+export const createTriageAssessment = async (assessmentData) => {
+    const id = `triage-${Date.now()}`;
+    const assessment = {
+        id,
+        ...assessmentData,
+        timestamp: new Date().toISOString(),
+        status: 'WAITING'
+    };
+    mockTriageStore.set(id, assessment);
+    return assessment;
+};
+
+export const getTriageQueue = async () => {
+    const assessments = Array.from(mockTriageStore.values());
+
+    // Sort by Level (ASC) then Timestamp (ASC - oldest first)
+    return assessments.sort((a, b) => {
+        if (a.level.priority !== b.level.priority) {
+            return a.level.priority - b.level.priority;
+        }
+        return new Date(a.timestamp) - new Date(b.timestamp);
+    });
+};
+
 export const chatWithAI = async (messages) => {
     try {
         const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {

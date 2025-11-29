@@ -58,7 +58,7 @@ export default function DDXTool() {
         setGenerating(true);
         try {
             // Create a temporary visit
-            const visitResponse = await fetch('http://localhost:3001/api/visits', {
+            const visitResponse = await fetch('http://192.168.1.6:3003/api/visits', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -81,14 +81,14 @@ export default function DDXTool() {
                 source: 'manual'
             }));
 
-            await fetch(`http://localhost:3001/api/visits/${visit.id}/symptoms`, {
+            await fetch(`http://192.168.1.6:3003/api/visits/${visit.id}/symptoms`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ symptoms: symptomsData })
             });
 
             // Generate differentials
-            const ddxResponse = await fetch(`http://localhost:3001/api/visits/${visit.id}/differentials`, {
+            const ddxResponse = await fetch(`http://192.168.1.6:3003/api/visits/${visit.id}/differentials`, {
                 method: 'POST'
             });
 
@@ -121,7 +121,7 @@ export default function DDXTool() {
         setChatLoading(true);
 
         try {
-            const response = await fetch('http://localhost:3001/api/chat', {
+            const response = await fetch('http://192.168.1.6:3003/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

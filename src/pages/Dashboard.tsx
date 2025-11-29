@@ -50,8 +50,8 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     try {
       const [statsRes, queueRes] = await Promise.all([
-        fetch('http://localhost:3001/api/stats'),
-        fetch('http://localhost:3001/api/queue')
+        fetch('http://192.168.1.6:3003/api/stats'),
+        fetch('http://192.168.1.6:3003/api/queue')
       ]);
 
       if (statsRes.ok) {

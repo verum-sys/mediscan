@@ -16,6 +16,7 @@ import CameraOCR from "./pages/CameraOCR";
 import Search from "./pages/Search";
 import NewVisit from "./pages/NewVisit";
 import DDXTool from "./pages/DDXTool";
+import Triage from "./pages/Triage";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/visit/new" element={<NewVisit />} />
               <Route path="/visit/:id" element={<VisitDetail />} />
               <Route path="/ddx" element={<DDXTool />} />
+              <Route path="/emergency/triage" element={<Triage />} />
               <Route path="/result/:id" element={<Result />} />
               <Route path="/logs" element={<Logs />} />
               <Route path="/settings" element={<Settings />} />

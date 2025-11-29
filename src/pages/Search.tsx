@@ -18,7 +18,7 @@ export default function Search() {
         setSearching(true);
         try {
             // For now, this is a placeholder that searches through queue
-            const response = await fetch('http://localhost:3001/api/queue');
+            const response = await fetch('http://192.168.1.6:3003/api/queue');
             if (response.ok) {
                 const allVisits = await response.json();
 
