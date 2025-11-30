@@ -368,7 +368,7 @@ export default function Dashboard() {
               <p className="text-sm">No active visits found for today.</p>
             </Card>
           ) : (
-            <div className="border border-border rounded-xl overflow-auto bg-card shadow-sm h-[500px]">
+            <div className="border border-border rounded-xl overflow-auto bg-card shadow-sm h-[400px] md:h-[500px] min-h-[300px]">
               <table className="w-full text-sm text-left">
                 <thead className="bg-muted/50 text-muted-foreground font-semibold border-b border-border sticky top-0 z-10">
                   <tr>

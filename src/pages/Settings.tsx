@@ -16,6 +16,7 @@ import {
   Save
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -200,6 +201,13 @@ export default function Settings() {
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <label className="text-sm font-medium">Theme Preference</label>
+                    <p className="text-xs text-muted-foreground">Switch between Light and Dark mode</p>
+                  </div>
+                  <ModeToggle />
+                </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <label className="text-sm font-medium">Compact View</label>
