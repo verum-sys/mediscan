@@ -92,9 +92,14 @@ export default function CameraOCR() {
         }, 1500);
 
         try {
-            // Convert base64 to blob
-            const blob = await (await fetch(capturedImage)).blob();
-            const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
+            let file;
+            if ((window as any).currentFile) {
+                file = (window as any).currentFile;
+            } else {
+                // Convert base64 to blob
+                const blob = await (await fetch(capturedImage)).blob();
+                file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
+            }
 
             const formData = new FormData();
             formData.append('file', file);
@@ -189,16 +194,30 @@ export default function CameraOCR() {
                             <input
                                 id="file-upload"
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,application/pdf"
                                 className="hidden"
                                 onChange={(e) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
-                                        const reader = new FileReader();
-                                        reader.onloadend = () => {
-                                            setCapturedImage(reader.result as string);
-                                        };
-                                        reader.readAsDataURL(file);
+                                        if (file.type === 'application/pdf') {
+                                            // Handle PDF: Set a placeholder or direct process
+                                            // For now, we'll use a placeholder and store the file object for processing
+                                            // Note: We need to modify state to hold the File object directly if we want to support PDFs properly
+                                            // But for quick fix, we'll just set a placeholder image for preview
+                                            setCapturedImage("https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg");
+                                            // We need to store the actual file for processing, currently processImage uses capturedImage (base64)
+                                            // This requires a larger refactor to support File objects in processImage.
+                                            // Let's attach the file to the window or a ref for now to avoid breaking the flow, 
+                                            // or better, update processImage to handle a file ref.
+                                            (window as any).currentFile = file;
+                                        } else {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                                setCapturedImage(reader.result as string);
+                                                (window as any).currentFile = file;
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }
                                     }
                                 }}
                             />
