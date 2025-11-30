@@ -24,20 +24,28 @@ export default function CameraOCR() {
 
     const startCamera = async () => {
         try {
+            // Try with environment facing mode first
             const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: "environment" }
             });
-
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-            }
+            if (videoRef.current) videoRef.current.srcObject = mediaStream;
             setStream(mediaStream);
         } catch (error) {
-            toast({
-                title: "Camera Error",
-                description: "Could not access camera. Please check permissions.",
-                variant: "destructive"
-            });
+            console.warn("Environment camera failed, trying fallback...", error);
+            try {
+                // Fallback to any available video source
+                const fallbackStream = await navigator.mediaDevices.getUserMedia({
+                    video: true
+                });
+                if (videoRef.current) videoRef.current.srcObject = fallbackStream;
+                setStream(fallbackStream);
+            } catch (fallbackError) {
+                toast({
+                    title: "Camera Error",
+                    description: "Could not access camera. Please ensure you are using HTTPS or localhost.",
+                    variant: "destructive"
+                });
+            }
         }
     };
 

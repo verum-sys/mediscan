@@ -195,7 +195,7 @@ export default function Dashboard() {
       <div className="container mx-auto px-6 py-4 max-w-7xl flex flex-col gap-4">
 
         {/* Section 1: Header Area */}
-        <div className="flex flex-row justify-between items-center shrink-0">
+        <div className="flex flex-row justify-between items-center shrink-0 order-1 md:order-none">
           <div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent leading-tight">
               DiagNXT
@@ -204,7 +204,6 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4">
-
             <div className="flex items-center gap-6 bg-card border border-border px-4 py-2 rounded-lg shadow-sm">
               <div className="text-right">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Avg Response Time</p>
@@ -213,8 +212,8 @@ export default function Dashboard() {
                   <p className="text-sm font-bold text-foreground">3 mins</p>
                 </div>
               </div>
-              <div className="h-6 w-[1px] bg-border"></div>
-              <div className="text-right">
+              <div className="hidden md:block h-6 w-[1px] bg-border"></div>
+              <div className="hidden md:block text-right">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Model Confidence</p>
                 <div className="flex items-center justify-end gap-2">
                   <Activity className="w-3 h-3 text-blue-500" />
@@ -226,7 +225,7 @@ export default function Dashboard() {
         </div>
 
         {/* Section 2: Status Cards */}
-        <div className="grid grid-cols-4 gap-3 shrink-0">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0 order-2 md:order-none">
           <Card className="bg-[#ef4444] border-none p-3 hover:shadow-md transition-all">
             <div className="flex justify-between items-start mb-1">
               <h3 className="text-white font-semibold text-xs">Critical Cases</h3>
@@ -273,9 +272,9 @@ export default function Dashboard() {
         </div>
 
         {/* Section 3: Split Middle Section */}
-        <div className="grid grid-cols-2 gap-4 shrink-0 h-[280px]">
+        <div className="contents md:grid md:grid-cols-2 gap-4 shrink-0 md:h-[280px]">
           {/* Left Column: Triage Snapshot */}
-          <Card className="bg-card border-border p-5 flex flex-col items-center justify-center h-full shadow-sm">
+          <Card className="bg-card border-border p-5 flex flex-col items-center justify-center h-full shadow-sm order-3 md:order-none">
             <div className="w-full flex justify-between items-center mb-4 border-b border-border pb-3">
               <h3 className="text-lg font-semibold text-foreground">Today's Triage Snapshot</h3>
               <Badge variant="outline" className="text-xs h-6">Live Data</Badge>
@@ -316,7 +315,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Right Column: Live Medical Feed Widget */}
-          <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex flex-col h-full overflow-hidden order-5 md:order-none min-h-[300px] md:min-h-0">
             <div className="flex-1 overflow-hidden h-full">
               <ArticleCarousel />
             </div>
@@ -324,7 +323,7 @@ export default function Dashboard() {
         </div>
 
         {/* Section 4: Action Grid */}
-        <div className="grid grid-cols-3 gap-4 shrink-0">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 shrink-0 order-4 md:order-none">
           {quickActions.map((action, index) => (
             <Card
               key={index}
@@ -349,7 +348,7 @@ export default function Dashboard() {
         </div>
 
         {/* Section 5: Patient Table */}
-        <div className="flex-1 min-h-0 flex flex-col gap-2">
+        <div className="flex-1 min-h-0 flex flex-col gap-2 order-6 md:order-none">
           <div className="flex items-center justify-between shrink-0">
             <div>
               <h2 className="text-lg font-bold text-foreground">Continue where you left off</h2>

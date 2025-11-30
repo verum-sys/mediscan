@@ -27,7 +27,7 @@ export function Sidebar() {
     ];
 
     return (
-        <div className="w-64 h-screen bg-card/50 backdrop-blur-xl border-r border-border flex flex-col p-4 shrink-0 fixed left-0 top-0 z-50">
+        <div className="hidden md:flex w-64 h-screen bg-card/50 backdrop-blur-xl border-r border-border flex-col p-4 shrink-0 fixed left-0 top-0 z-50">
             {/* Header with Tri-color Emblem */}
             <div className="flex items-center gap-3 px-2 mb-8 mt-2">
                 <div className="relative w-12 h-12 rounded-full flex items-center justify-center p-[2px] bg-gradient-to-tr from-[#FF9933] via-white to-[#138808] shadow-sm">
