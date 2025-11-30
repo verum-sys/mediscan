@@ -135,6 +135,7 @@ export default function DDXTool() {
             `.trim();
 
             // Create a temporary visit
+            // Note: This fetch will fail on deployed Vercel apps trying to reach local backend
             const visitResponse = await fetch('http://192.168.1.6:3003/api/visits', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -185,12 +186,48 @@ export default function DDXTool() {
             return visit.id; // Return ID for chaining
 
         } catch (error) {
+            console.warn("Using mock DDX data due to API error:", error);
+
+            // Mock Differentials Data
+            const mockDifferentials = [
+                {
+                    id: "mock-1",
+                    rank: 1,
+                    condition_name: "Acute Bronchitis",
+                    icd10_code: "J20.9",
+                    confidence_score: 85,
+                    rationale: "Symptoms of cough and fever are consistent with acute bronchitis. The absence of severe respiratory distress makes this more likely than pneumonia.",
+                    suggested_investigations: ["Chest X-ray", "CBC", "Sputum Culture"]
+                },
+                {
+                    id: "mock-2",
+                    rank: 2,
+                    condition_name: "Viral Upper Respiratory Infection",
+                    icd10_code: "J06.9",
+                    confidence_score: 75,
+                    rationale: "Common viral presentation. Fever is usually low-grade. If symptoms persist, consider bacterial superinfection.",
+                    suggested_investigations: ["Rapid Flu Test", "COVID-19 PCR"]
+                },
+                {
+                    id: "mock-3",
+                    rank: 3,
+                    condition_name: "Pneumonia",
+                    icd10_code: "J18.9",
+                    confidence_score: 45,
+                    rationale: "Possible given the fever and cough, but less likely without reported shortness of breath or chest pain.",
+                    suggested_investigations: ["Chest X-ray", "Blood Culture", "Pulse Oximetry"]
+                }
+            ];
+
+            setDifferentials(mockDifferentials);
+            setGeneratedVisitId("mock-visit-id");
+
             toast({
-                title: "Error",
-                description: "Failed to generate differentials",
-                variant: "destructive"
+                title: "DDX Generated (Demo Mode)",
+                description: "Using demo data as backend is unreachable."
             });
-            return null;
+
+            return "mock-visit-id";
         } finally {
             setGenerating(false);
         }
