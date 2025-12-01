@@ -27,8 +27,8 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-    console.error('Missing Supabase configuration');
-    process.exit(1);
+    console.warn('Missing Supabase configuration - Backend will fail on DB operations');
+    // process.exit(1); // Don't crash the server on Vercel
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);

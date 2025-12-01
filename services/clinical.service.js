@@ -7,7 +7,14 @@ dotenv.config();
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : {
+    from: () => ({
+        select: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        insert: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        update: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        eq: () => ({ data: null, error: { message: 'Supabase not configured' }, single: () => ({ data: null, error: { message: 'Supabase not configured' } }) })
+    })
+};
 
 const LLM_API_KEY = process.env.LLM_API_KEY;
 const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://api.cerebras.ai/v1';
