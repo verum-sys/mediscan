@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, X, Check, RefreshCw, Upload } from "lucide-react";
+import { getApiUrl } from "@/config";
 
 export default function CameraOCR() {
     const navigate = useNavigate();
@@ -106,7 +107,7 @@ export default function CameraOCR() {
             formData.append('moduleId', 'document_scanner');
             formData.append('useLLM', 'true');
 
-            const response = await fetch('http://192.168.1.6:3003/process-document', {
+            const response = await fetch(getApiUrl('/process-document'), {
                 method: 'POST',
                 body: formData
             });

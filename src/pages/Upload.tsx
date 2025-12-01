@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { getApiUrl } from "@/config";
 
 export default function Upload() {
   const [file, setFile] = useState<File | null>(null);
@@ -49,7 +50,7 @@ export default function Upload() {
       formData.append("useLLM", String(useLLM));
 
       // Use local server instead of Supabase Function
-      const response = await fetch("http://192.168.1.6:3003/process-document", {
+      const response = await fetch(getApiUrl("/process-document"), {
         method: "POST",
         body: formData,
       });

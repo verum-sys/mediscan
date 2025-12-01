@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, UserPlus } from "lucide-react";
+import { getApiUrl } from "@/config";
 
 export default function NewVisit() {
     const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function NewVisit() {
         setCreating(true);
 
         try {
-            const response = await fetch('http://192.168.1.6:3003/api/visits', {
+            const response = await fetch(getApiUrl('/api/visits'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -4,7 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Search as SearchIcon } from "lucide-react";
+import { ArrowLeft, Search as SearchIcon, FileText, Calendar, User, ArrowRight } from "lucide-react";
+import { getApiUrl } from "@/config";
 
 export default function Search() {
     const navigate = useNavigate();
@@ -18,7 +19,7 @@ export default function Search() {
         setSearching(true);
         try {
             // For now, this is a placeholder that searches through queue
-            const response = await fetch('http://192.168.1.6:3003/api/queue');
+            const response = await fetch(getApiUrl('/api/queue'));
             if (response.ok) {
                 const allVisits = await response.json();
 

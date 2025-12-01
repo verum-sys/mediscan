@@ -24,6 +24,7 @@ import {
     Clock,
     CheckCircle2
 } from "lucide-react";
+import { getApiUrl } from "@/config";
 
 interface TriageResult {
     level: 'Red' | 'Orange' | 'Yellow' | 'Green' | 'Blue';
@@ -100,7 +101,7 @@ export default function Triage() {
 
     const loadQueue = async () => {
         try {
-            const res = await fetch('http://192.168.1.6:3003/api/triage/queue');
+            const res = await fetch(getApiUrl('/api/triage/queue'));
             if (res.ok) {
                 const data = await res.json();
                 setQueue(data);
@@ -221,7 +222,7 @@ export default function Triage() {
 
         // Save to Backend
         try {
-            await fetch('http://192.168.1.6:3003/api/triage', {
+            await fetch(getApiUrl('/api/triage'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -580,16 +581,16 @@ export default function Triage() {
                                             <div
                                                 key={patient.id}
                                                 className={`flex items-center p-4 rounded-xl border transition-all hover:shadow-md ${patient.level.priority === 1 ? 'bg-red-500/5 border-red-500/30' :
-                                                        patient.level.priority === 2 ? 'bg-orange-500/5 border-orange-500/30' :
-                                                            'bg-card border-border'
+                                                    patient.level.priority === 2 ? 'bg-orange-500/5 border-orange-500/30' :
+                                                        'bg-card border-border'
                                                     }`}
                                             >
                                                 {/* Priority Badge */}
                                                 <div className={`w-16 h-16 rounded-lg flex flex-col items-center justify-center mr-4 font-bold text-white shadow-lg ${patient.level.priority === 1 ? 'bg-red-500' :
-                                                        patient.level.priority === 2 ? 'bg-orange-500' :
-                                                            patient.level.priority === 3 ? 'bg-yellow-500 text-black' :
-                                                                patient.level.priority === 4 ? 'bg-green-500' :
-                                                                    'bg-blue-500'
+                                                    patient.level.priority === 2 ? 'bg-orange-500' :
+                                                        patient.level.priority === 3 ? 'bg-yellow-500 text-black' :
+                                                            patient.level.priority === 4 ? 'bg-green-500' :
+                                                                'bg-blue-500'
                                                     }`}>
                                                     <span className="text-xs uppercase">Level</span>
                                                     <span className="text-2xl">{patient.level.priority}</span>

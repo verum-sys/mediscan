@@ -21,6 +21,7 @@ import {
     FileText,
     Upload
 } from "lucide-react";
+import { getApiUrl } from "@/config";
 
 interface Visit {
     id: string;
@@ -111,7 +112,7 @@ export default function VisitDetail() {
     const generateAnalysis = async () => {
         setAnalyzing(true);
         try {
-            const response = await fetch(`http://192.168.1.6:3003/api/visits/${id}/analysis`, {
+            const response = await fetch(getApiUrl(`/api/visits/${id}/analysis`), {
                 method: 'POST'
             });
 
@@ -139,7 +140,7 @@ export default function VisitDetail() {
 
     const loadVisit = async () => {
         try {
-            const response = await fetch(`http://192.168.1.6:3003/api/visits/${id}`);
+            const response = await fetch(getApiUrl(`/api/visits/${id}`));
             if (response.ok) {
                 const data = await response.json();
                 setVisit(data.visit);
@@ -166,7 +167,7 @@ export default function VisitDetail() {
 
     const generateDifferentials = async () => {
         try {
-            const response = await fetch(`http://192.168.1.6:3003/api/visits/${id}/differentials`, {
+            const response = await fetch(getApiUrl(`/api/visits/${id}/differentials`), {
                 method: 'POST'
             });
 
@@ -188,7 +189,7 @@ export default function VisitDetail() {
 
     const deleteSymptom = async (symptomId: string) => {
         try {
-            const response = await fetch(`http://192.168.1.6:3003/api/symptoms/${symptomId}`, {
+            const response = await fetch(getApiUrl(`/api/symptoms/${symptomId}`), {
                 method: 'DELETE'
             });
 
@@ -208,7 +209,7 @@ export default function VisitDetail() {
     const addSymptom = async () => {
         if (!newSymptom.trim()) return;
         try {
-            const response = await fetch(`http://192.168.1.6:3003/api/visits/${id}/symptoms`, {
+            const response = await fetch(getApiUrl(`/api/visits/${id}/symptoms`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -235,7 +236,7 @@ export default function VisitDetail() {
     const handleAddMedication = async () => {
         if (!newMedName.trim()) return;
         try {
-            const response = await fetch(`http://192.168.1.6:3003/api/visits/${id}/medications`, {
+            const response = await fetch(getApiUrl(`/api/visits/${id}/medications`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -270,7 +271,7 @@ export default function VisitDetail() {
 
         setLoading(true);
         try {
-            const response = await fetch('http://192.168.1.6:3003/process-document', {
+            const response = await fetch(getApiUrl('/process-document'), {
                 method: 'POST',
                 body: formData
             });
@@ -298,7 +299,7 @@ export default function VisitDetail() {
 
     const handleSaveHeader = async () => {
         try {
-            const response = await fetch(`http://192.168.1.6:3003/api/visits/${id}`, {
+            const response = await fetch(getApiUrl(`/api/visits/${id}`), {
                 method: 'PATCH', // Assuming PATCH is supported for updates
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

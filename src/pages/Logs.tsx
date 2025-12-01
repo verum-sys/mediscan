@@ -8,6 +8,7 @@ import { formatDistance } from "date-fns";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { getApiUrl } from "@/config";
 
 export default function Logs() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -25,7 +26,7 @@ export default function Logs() {
 
   const loadStats = async () => {
     try {
-      const res = await fetch('http://192.168.1.6:3003/api/stats');
+      const res = await fetch(getApiUrl('/api/stats'));
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -37,7 +38,7 @@ export default function Logs() {
 
   const loadAnalytics = async () => {
     try {
-      const res = await fetch('http://192.168.1.6:3003/api/analytics');
+      const res = await fetch(getApiUrl('/api/analytics'));
       if (res.ok) {
         const data = await res.json();
         setAnalytics(data);

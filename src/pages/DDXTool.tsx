@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getApiUrl } from "@/config";
 
 interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
@@ -70,7 +71,7 @@ export default function DDXTool() {
 
         setChatLoading(true);
         try {
-            const response = await fetch('http://192.168.1.6:3003/api/chat', {
+            const response = await fetch(getApiUrl('/api/chat'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -136,7 +137,7 @@ export default function DDXTool() {
 
             // Create a temporary visit
             // Note: This fetch will fail on deployed Vercel apps trying to reach local backend
-            const visitResponse = await fetch('http://192.168.1.6:3003/api/visits', {
+            const visitResponse = await fetch(getApiUrl('/api/visits'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -160,14 +161,14 @@ export default function DDXTool() {
                 source: 'manual'
             }));
 
-            await fetch(`http://192.168.1.6:3003/api/visits/${visit.id}/symptoms`, {
+            await fetch(getApiUrl(`/api/visits/${visit.id}/symptoms`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ symptoms: symptomsData })
             });
 
             // Generate differentials
-            const ddxResponse = await fetch(`http://192.168.1.6:3003/api/visits/${visit.id}/differentials`, {
+            const ddxResponse = await fetch(getApiUrl(`/api/visits/${visit.id}/differentials`), {
                 method: 'POST'
             });
 
@@ -251,7 +252,7 @@ export default function DDXTool() {
         setChatLoading(true);
 
         try {
-            const response = await fetch('http://192.168.1.6:3003/api/chat', {
+            const response = await fetch(getApiUrl('/api/chat'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

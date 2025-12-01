@@ -15,6 +15,7 @@ import {
   Bell
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/config";
 
 interface QueueItem {
   id: string;
@@ -142,8 +143,8 @@ export default function Dashboard() {
       // Try fetching from API first
       // Note: This will likely fail on Vercel (HTTPS) due to Mixed Content if API is HTTP
       const [statsRes, queueRes] = await Promise.all([
-        fetch('http://192.168.1.6:3003/api/stats').catch(e => null),
-        fetch('http://192.168.1.6:3003/api/queue').catch(e => null)
+        fetch(getApiUrl('/api/stats')).catch(e => null),
+        fetch(getApiUrl('/api/queue')).catch(e => null)
       ]);
 
       if (statsRes && statsRes.ok) {
