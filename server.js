@@ -13,11 +13,21 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Configure CORS
-app.use(cors());
+app.use(cors({
+    origin: '*', // Allow all origins for now to fix connection issues
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Register clinical API routes
 app.use('/api', clinicalRoutes);
+
+// Global error handler
+app.use((err, req, res, next) => {
+    console.error('Global Error Handler:', err);
+    res.status(500).json({ error: err.message || 'Internal Server Error', stack: process.env.NODE_ENV === 'development' ? err.stack : undefined });
+});
 
 // Configure Multer for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
@@ -31,7 +41,14 @@ if (!supabaseUrl || !supabaseKey) {
     // process.exit(1); // Don't crash the server on Vercel
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : {
+    from: () => ({
+        select: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        insert: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        update: () => ({ data: null, error: { message: 'Supabase not configured' } }),
+        eq: () => ({ data: null, error: { message: 'Supabase not configured' }, single: () => ({ data: null, error: { message: 'Supabase not configured' } }) })
+    })
+};
 
 
 
