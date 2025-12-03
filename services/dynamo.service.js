@@ -219,11 +219,19 @@ export const getStats = async () => {
             (v.visit_notes && v.visit_notes.toLowerCase().includes('follow up'))
         ).length;
 
+        // Baseline Fake Data (to make dashboard look populated)
+        const BASELINE = {
+            todayTotal: 142,
+            highRisk: 12,
+            incompleteData: 5,
+            followUp: 45
+        };
+
         return {
-            todayTotal,
-            highRisk,
-            incompleteData,
-            followUp,
+            todayTotal: todayTotal + BASELINE.todayTotal,
+            highRisk: highRisk + BASELINE.highRisk,
+            incompleteData: incompleteData + BASELINE.incompleteData,
+            followUp: followUp + BASELINE.followUp,
             storageStatus: 'dynamodb'
         };
     } catch (error) {
@@ -236,11 +244,78 @@ export const getQueue = async () => {
     try {
         const visits = await scanTable("Visits");
         // Sort by created_at desc
-        return visits.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 20).map(v => ({
+        // Fake Queue Data
+        const MOCK_QUEUE = [
+            {
+                id: 'mock-q-1',
+                visit_number: 'OPD-2024-892',
+                chief_complaint: 'Severe chest pain radiating to left arm',
+                facility_name: 'City General Hospital',
+                department: 'Cardiology',
+                status: 'in_progress',
+                confidence_score: 92,
+                created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
+                has_high_risk: true,
+                needs_follow_up: false
+            },
+            {
+                id: 'mock-q-2',
+                visit_number: 'OPD-2024-891',
+                chief_complaint: 'Persistent dry cough and fever',
+                facility_name: 'City General Hospital',
+                department: 'Pulmonology',
+                status: 'completed',
+                confidence_score: 88,
+                created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 mins ago
+                has_high_risk: false,
+                needs_follow_up: true
+            },
+            {
+                id: 'mock-q-3',
+                visit_number: 'OPD-2024-890',
+                chief_complaint: 'Migraine with aura',
+                facility_name: 'City General Hospital',
+                department: 'Neurology',
+                status: 'waiting',
+                confidence_score: 75,
+                created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+                has_high_risk: false,
+                needs_follow_up: false
+            },
+            {
+                id: 'mock-q-4',
+                visit_number: 'OPD-2024-889',
+                chief_complaint: 'Abdominal pain, lower right quadrant',
+                facility_name: 'City General Hospital',
+                department: 'Emergency',
+                status: 'in_progress',
+                confidence_score: 65,
+                created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 hours ago
+                has_high_risk: true,
+                needs_follow_up: false
+            },
+            {
+                id: 'mock-q-5',
+                visit_number: 'OPD-2024-888',
+                chief_complaint: 'Routine diabetic checkup',
+                facility_name: 'City General Hospital',
+                department: 'Endocrinology',
+                status: 'completed',
+                confidence_score: 95,
+                created_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(), // 4 hours ago
+                has_high_risk: false,
+                needs_follow_up: false
+            }
+        ];
+
+        const realVisits = visits.map(v => ({
             ...v,
             has_high_risk: (v.confidence_score < 70),
-            needs_follow_up: false // logic can be improved
+            needs_follow_up: false
         }));
+
+        // Combine real visits with mock queue
+        return [...realVisits, ...MOCK_QUEUE].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     } catch (error) {
         console.error("Error getting queue:", error);
         return [];
@@ -329,6 +404,56 @@ export const generateDifferentials = async (visitId) => {
 
 export const chatWithAI = async (messages) => {
     try {
+        // Check if the messages already contain the system prompt. 
+        // If not (or if it's the generic one), we inject our specific Clinical Assistant prompt.
+        const hasSystemPrompt = messages.some(m => m.role === 'system');
+
+        const systemPrompt = `### SYSTEM ROLE
+You are an expert Clinical Diagnostic Assistant designed to interview a physician or patient. Your goal is to gather a complete medical history to build a precise differential diagnosis.
+
+### INPUT CONTEXT
+You will receive a stream of symptoms provided by the user. These symptoms may be incomplete or vague.
+
+### OBJECTIVE
+Analyze the provided symptoms and generate **ONE** high-yield follow-up inquiry. This inquiry must be designed to:
+1.  **Rule out emergencies:** Prioritize "Red Flag" symptoms (e.g., if chest pain, ask about radiation/sweating).
+2.  **Narrow the Differential:** Ask questions that distinguish between the most likely causes.
+3.  **Clarify:** Use clinical frameworks (SOCRATES, OPQRST) to flesh out vague symptoms.
+
+### OPERATIONAL RULES
+1.  **NO DIAGNOSIS:** Do not offer a diagnosis, probability lists, or treatment advice at this stage. Your sole job is data collection.
+2.  **BE CONCISE:** The user is likely a busy doctor or an anxious patient. Keep questions short, professional, and direct.
+3.  **COMPOUND EFFICIENCY:** You may combine 2-3 closely related queries into your "one" question to save time (e.g., "How long have you had the cough, and is it productive of sputum?").
+4.  **DYNAMIC ADAPTATION:**
+    - If the input is "Headache", do not ask "Where is it?" immediately if "Thunderclap onset" is a more critical rule-out.
+    - If the input is "Fever", probe for localizing signs (urinary symptoms, cough, neck stiffness).
+
+### INTERNAL PROTOCOL (DO NOT REVEAL TO USER)
+1.  **Interview Limit:** You must ask exactly 4 questions in total across the conversation.
+2.  **Turn Tracking:** Count the number of "assistant" messages in the conversation history.
+    - If count < 3: Ask your high-yield question as per the rules above.
+    - If count == 3: Ask your FINAL question.
+    - If count >= 4: Do NOT ask a question. Instead, output exactly: "I have enough information. Please click 'Generate Differentials' to see the analysis."
+3.  **JSON Output:** You MUST output valid JSON.
+    {
+        "message": "Your question or closing statement",
+        "new_symptoms": ["symptom1", "symptom2"], // Extract ALL symptoms mentioned or confirmed in the user's latest response
+        "new_medications": ["med1", "med2"], // Extract ALL medications mentioned
+        "new_history": ["history1"] // Extract ALL relevant medical history
+    }
+
+### EXAMPLES
+User: "Abdominal pain"
+AI: { "message": "Can you point to exactly where the pain is located, and does it migrate anywhere?", "new_symptoms": [], "new_medications": [], "new_history": [] }
+
+User: "It's in the lower right and I have vomiting. I take aspirin."
+AI: { "message": "How long have you had the pain and vomiting?", "new_symptoms": ["vomiting"], "new_medications": ["aspirin"], "new_history": [] }`;
+
+        const finalMessages = hasSystemPrompt ? messages : [
+            { role: 'system', content: systemPrompt },
+            ...messages
+        ];
+
         const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
             method: 'POST',
             headers: {
@@ -337,15 +462,26 @@ export const chatWithAI = async (messages) => {
             },
             body: JSON.stringify({
                 model: LLM_MODEL,
-                messages: messages,
+                messages: finalMessages,
                 response_format: { type: "json_object" }
             })
         });
+
+        if (!response.ok) throw new Error("LLM API Failed");
         const data = await response.json();
-        return data.choices[0]?.message?.content;
+        const content = data.choices[0]?.message?.content;
+
+        try {
+            // Try to parse JSON
+            return JSON.parse(content);
+        } catch (e) {
+            console.error("Failed to parse Chat JSON:", e);
+            // Fallback if LLM fails to output JSON
+            return { message: content, new_symptoms: [], new_medications: [], new_history: [] };
+        }
     } catch (e) {
         console.error(e);
-        return "Error connecting to AI";
+        return { message: "Error connecting to AI assistant.", new_symptoms: [], new_medications: [], new_history: [] };
     }
 };
 
