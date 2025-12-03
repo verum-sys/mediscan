@@ -354,4 +354,86 @@ export const getAnalytics = async () => ({});
 export const createTriageAssessment = async () => ({});
 export const getTriageQueue = async () => ([]);
 export const summarizeConversation = async () => ({});
-export const generateClinicalAnalysis = async () => ({});
+export const generateClinicalAnalysis = async (visitId) => {
+    // 1. Get Visit Data
+    let visitData;
+    try {
+        visitData = await getVisit(visitId);
+    } catch (e) {
+        console.error("Failed to fetch visit for analysis:", e);
+        throw new Error("Visit not found");
+    }
+
+    const { visit, symptoms, medications } = visitData;
+    const context = `
+    Patient Visit Info:
+    Chief Complaint: ${visit.chief_complaint}
+    Notes: ${visit.visit_notes}
+    Symptoms: ${symptoms.map(s => s.symptom_text).join(', ')}
+    Medical History / Medications: ${medications ? medications.map(m => `${m.medication_name} (${m.date_prescribed || 'No Date'})`).join(', ') : 'None'}
+    `;
+
+    // 2. Call LLM
+    try {
+        const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${LLM_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: LLM_MODEL,
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are a clinical decision support AI. Analyze the patient data and return a JSON response with:
+                        1. patient_analysis: { Age, Sex, Chief_Complaint, Symptoms, Treatment_Plan, Effectiveness_Prediction, Notes }
+                        2. investigative_suggestions: [{ Test_Name, Type (Essential/Optional), Ruled_Out_Test, Confidence_Score }]
+                        
+                        Infer missing details like Age/Sex from context if possible, or mark as "Unknown".
+                        Return ONLY valid JSON.`
+                    },
+                    {
+                        role: 'user',
+                        content: context
+                    }
+                ],
+                response_format: { type: "json_object" }
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`LLM API Error: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        const content = result.choices[0]?.message?.content;
+        const parsed = JSON.parse(content);
+
+        // Normalize confidence scores to 0-100
+        if (parsed.investigative_suggestions) {
+            parsed.investigative_suggestions = parsed.investigative_suggestions.map(item => ({
+                ...item,
+                Confidence_Score: item.Confidence_Score <= 1 ? Math.round(item.Confidence_Score * 100) : item.Confidence_Score
+            }));
+        }
+
+        return parsed;
+
+    } catch (error) {
+        console.error("Analysis generation failed:", error);
+        // Fallback mock data if LLM fails
+        return {
+            patient_analysis: {
+                Age: "Unknown",
+                Sex: "Unknown",
+                Chief_Complaint: visit.chief_complaint,
+                Symptoms: symptoms.map(s => s.symptom_text).join(', '),
+                Treatment_Plan: "Consultation required",
+                Effectiveness_Prediction: "Moderate",
+                Notes: "Automated analysis failed. Please review manually."
+            },
+            investigative_suggestions: []
+        };
+    }
+};
