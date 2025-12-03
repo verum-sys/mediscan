@@ -483,7 +483,12 @@ AI: { "message": "How long have you had the pain and vomiting?", "new_symptoms":
 
         try {
             // Try to parse JSON
-            return JSON.parse(content);
+            let cleanContent = content.trim();
+            // Remove markdown code blocks if present
+            if (cleanContent.startsWith('```')) {
+                cleanContent = cleanContent.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
+            }
+            return JSON.parse(cleanContent);
         } catch (e) {
             console.error("Failed to parse Chat JSON:", e);
             // Fallback if LLM fails to output JSON
