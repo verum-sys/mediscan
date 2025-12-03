@@ -5,7 +5,7 @@ import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import clinicalRoutes from './routes/clinical.routes.js';
-import { createVisit, updateVisit, addSymptoms, addMedications } from './services/dynamo.service.js';
+import { createVisit, updateVisit, addSymptoms, addMedications, createAuditLog } from './services/dynamo.service.js';
 
 dotenv.config();
 
@@ -223,7 +223,7 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
 
         // Create audit log
         try {
-            await supabase.from('audit_logs').insert({
+            await createAuditLog({
                 document_id: document.id,
                 module_id: moduleId || 'visit-upload',
                 file_name: file.originalname,
