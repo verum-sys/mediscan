@@ -36,6 +36,7 @@ interface Stats {
   highRisk: number;
   incompleteData: number;
   followUp: number;
+  storageStatus?: 'database' | 'memory';
 }
 
 const ArticleCarousel = () => {
@@ -150,6 +151,15 @@ export default function Dashboard() {
       if (statsRes && statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
+
+        if (statsData.storageStatus === 'memory') {
+          toast({
+            title: "Demo Mode Active",
+            description: "Database not connected. Data will reset on refresh.",
+            variant: "destructive",
+            duration: 6000,
+          });
+        }
       } else {
         throw new Error("API unreachable");
       }

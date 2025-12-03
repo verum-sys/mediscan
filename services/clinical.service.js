@@ -397,7 +397,8 @@ export const getStats = async () => {
         todayTotal: todayTotal + BASELINE.todayTotal,
         highRisk: highRisk + BASELINE.highRisk,
         incompleteData: incompleteData + BASELINE.incompleteData,
-        followUp: followUp + BASELINE.followUp
+        followUp: followUp + BASELINE.followUp,
+        storageStatus: (supabaseUrl && supabaseKey) ? 'database' : 'memory'
     };
 };
 
