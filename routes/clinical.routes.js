@@ -1,6 +1,6 @@
 
 import express from 'express';
-import * as service from '../services/clinical.service.js';
+import * as service from '../services/dynamo.service.js';
 
 const router = express.Router();
 

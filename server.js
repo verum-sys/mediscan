@@ -5,7 +5,7 @@ import multer from 'multer';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import clinicalRoutes from './routes/clinical.routes.js';
-import { createVisit, updateVisit, addSymptoms, addMedications } from './services/clinical.service.js';
+import { createVisit, updateVisit, addSymptoms, addMedications } from './services/dynamo.service.js';
 
 dotenv.config();
 
