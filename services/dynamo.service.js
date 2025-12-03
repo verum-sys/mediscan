@@ -469,8 +469,7 @@ AI: { "message": "How long have you had the pain and vomiting?", "new_symptoms":
             },
             body: JSON.stringify({
                 model: LLM_MODEL,
-                messages: finalMessages,
-                response_format: { type: "json_object" }
+                messages: finalMessages
             })
         });
 
