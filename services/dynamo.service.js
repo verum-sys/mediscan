@@ -588,3 +588,32 @@ export const generateClinicalAnalysis = async (visitId) => {
         };
     }
 };
+
+export const getAuditLogs = async () => {
+    try {
+        const logs = await scanTable("AuditLogs");
+        // Sort by created_at desc
+        return logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } catch (error) {
+        console.error("Error getting audit logs:", error);
+        return [];
+    }
+};
+
+export const createAuditLog = async (logData) => {
+    const log = {
+        id: uuidv4(),
+        ...logData,
+        created_at: new Date().toISOString()
+    };
+    try {
+        await docClient.send(new PutCommand({
+            TableName: "AuditLogs",
+            Item: log
+        }));
+        return log;
+    } catch (error) {
+        console.error("Error creating audit log:", error);
+        return null;
+    }
+};
