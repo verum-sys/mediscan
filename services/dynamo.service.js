@@ -454,6 +454,11 @@ AI: { "message": "How long have you had the pain and vomiting?", "new_symptoms":
             ...messages
         ];
 
+        if (!LLM_API_KEY) {
+            console.error("LLM_API_KEY is missing in environment variables.");
+            return { message: "System Error: AI API Key is missing. Please check deployment settings.", new_symptoms: [], new_medications: [], new_history: [] };
+        }
+
         const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
             method: 'POST',
             headers: {
@@ -467,7 +472,11 @@ AI: { "message": "How long have you had the pain and vomiting?", "new_symptoms":
             })
         });
 
-        if (!response.ok) throw new Error("LLM API Failed");
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`LLM API Failed: ${response.status} ${response.statusText} - ${errorText}`);
+            throw new Error(`LLM API Failed: ${response.status} ${errorText}`);
+        }
         const data = await response.json();
         const content = data.choices[0]?.message?.content;
 
