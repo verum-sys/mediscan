@@ -435,6 +435,7 @@ Analyze the provided symptoms and generate **ONE** high-yield follow-up inquiry.
     - If count == 3: Ask your FINAL question.
     - If count >= 4: Do NOT ask a question. Instead, output exactly: "I have enough information. Please click 'Generate Differentials' to see the analysis."
 3.  **JSON Output:** You MUST output valid JSON.
+    IMPORTANT: You must include the word JSON in your response to satisfy the API requirement.
     {
         "message": "Your question or closing statement",
         "new_symptoms": ["symptom1", "symptom2"], // Extract ALL symptoms mentioned or confirmed in the user's latest response
