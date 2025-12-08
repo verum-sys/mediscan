@@ -34,6 +34,8 @@ interface Visit {
     confidence_score: number;
     created_at: string;
     visit_notes?: string;
+    criticality?: 'Critical' | 'Stable';
+    criticality_reason?: string;
 }
 
 interface Symptom {
@@ -410,12 +412,39 @@ export default function VisitDetail() {
                         )}
                     </div>
                     <div className="flex items-center gap-2">
+                        {visit.criticality === 'Critical' && (
+                            <Badge variant="destructive" className="animate-pulse">
+                                Critical
+                            </Badge>
+                        )}
                         <Badge variant={visit.status === 'completed' ? 'default' : 'secondary'}>
                             {visit.status}
                         </Badge>
                         <div className={`text-lg font-semibold ${getConfidenceColor(visit.confidence_score)}`}>
                             {visit.confidence_score}%
                         </div>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={async () => {
+                                if (confirm("Are you sure you want to delete this patient record? This action cannot be undone.")) {
+                                    try {
+                                        const res = await fetch(getApiUrl(`/api/visits/${id}`), { method: 'DELETE' });
+                                        if (res.ok) {
+                                            toast({ title: "Patient record deleted" });
+                                            navigate("/");
+                                        } else {
+                                            throw new Error("Failed to delete");
+                                        }
+                                    } catch (e) {
+                                        toast({ title: "Error deleting record", variant: "destructive" });
+                                    }
+                                }
+                            }}
+                        >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                        </Button>
                     </div>
                 </div>
 

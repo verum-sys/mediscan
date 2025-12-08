@@ -18,6 +18,7 @@ import Search from "./pages/Search";
 
 import DDXTool from "./pages/DDXTool";
 import Triage from "./pages/Triage";
+import QueueList from "./pages/QueueList";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/visit/:id" element={<VisitDetail />} />
               <Route path="/ddx" element={<DDXTool />} />
               <Route path="/emergency/triage" element={<Triage />} />
+              <Route path="/queue/:category" element={<QueueList />} />
               <Route path="/result/:id" element={<Result />} />
               <Route path="/logs" element={<Logs />} />
               <Route path="/patients" element={<Patients />} />

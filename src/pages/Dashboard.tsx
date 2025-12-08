@@ -29,6 +29,7 @@ interface QueueItem {
   has_high_risk: boolean;
   has_incomplete_data: boolean;
   needs_follow_up: boolean;
+  criticality?: 'Critical' | 'Stable';
 }
 
 interface Stats {
@@ -134,6 +135,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Stats>({ todayTotal: 0, highRisk: 0, incompleteData: 0, followUp: 0 });
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'critical' | 'moderate' | 'stable'>('all');
 
   useEffect(() => {
     loadDashboardData();
@@ -189,6 +191,7 @@ export default function Dashboard() {
           confidence_score: 98,
           created_at: new Date().toISOString(),
           has_high_risk: true,
+          criticality: 'Critical',
           has_incomplete_data: false,
           needs_follow_up: false
         },
@@ -241,6 +244,7 @@ export default function Dashboard() {
           confidence_score: 88,
           created_at: new Date().toISOString(),
           has_high_risk: true,
+          criticality: 'Critical',
           has_incomplete_data: false,
           needs_follow_up: false
         }
@@ -279,6 +283,14 @@ export default function Dashboard() {
   const moderate = stats.followUp;
   const incomplete = stats.incompleteData;
   const stable = Math.max(0, stats.todayTotal - (critical + moderate + incomplete));
+
+  const filteredQueue = queue.filter(item => {
+    if (filter === 'all') return true;
+    if (filter === 'critical') return item.has_high_risk || item.criticality === 'Critical';
+    if (filter === 'moderate') return item.needs_follow_up;
+    if (filter === 'stable') return !item.has_high_risk && !item.needs_follow_up;
+    return true;
+  });
 
   return (
     <div className="min-h-screen overflow-auto bg-background text-foreground font-sans transition-colors duration-300 flex flex-col">
@@ -322,7 +334,11 @@ export default function Dashboard() {
               <AlertTriangle className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="text-2xl font-bold text-white mb-1.5">{critical}</div>
-            <Button variant="secondary" className="w-full bg-white hover:bg-white/90 text-[#ef4444] text-[10px] h-5 border-0">
+            <Button
+              variant="secondary"
+              className="w-full bg-white hover:bg-white/90 text-[#ef4444] text-[10px] h-5 border-0"
+              onClick={() => navigate('/queue/critical')}
+            >
               View Critical Queue
             </Button>
           </Card>
@@ -333,7 +349,11 @@ export default function Dashboard() {
               <Activity className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="text-2xl font-bold text-white mb-1.5">{moderate}</div>
-            <Button variant="secondary" className="w-full bg-white hover:bg-white/90 text-[#f97316] text-[10px] h-5 border-0">
+            <Button
+              variant="secondary"
+              className="w-full bg-white hover:bg-white/90 text-[#f97316] text-[10px] h-5 border-0"
+              onClick={() => navigate('/queue/moderate')}
+            >
               Review Cases
             </Button>
           </Card>
@@ -344,7 +364,11 @@ export default function Dashboard() {
               <TrendingUp className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="text-2xl font-bold text-white mb-1.5">{stable}</div>
-            <Button variant="secondary" className="w-full bg-white hover:bg-white/90 text-[#3b82f6] text-[10px] h-5 border-0">
+            <Button
+              variant="secondary"
+              className="w-full bg-white hover:bg-white/90 text-[#3b82f6] text-[10px] h-5 border-0"
+              onClick={() => navigate('/queue/stable')}
+            >
               View Queue
             </Button>
           </Card>
@@ -355,7 +379,11 @@ export default function Dashboard() {
               <Clock className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="text-2xl font-bold text-white mb-1.5">{incomplete}</div>
-            <Button variant="secondary" className="w-full bg-white hover:bg-white/90 text-[#eab308] text-[10px] h-5 border-0">
+            <Button
+              variant="secondary"
+              className="w-full bg-white hover:bg-white/90 text-[#eab308] text-[10px] h-5 border-0"
+              onClick={() => navigate('/queue/incomplete')}
+            >
               Fix Now
             </Button>
           </Card>
@@ -441,7 +469,9 @@ export default function Dashboard() {
         <div className="flex-1 min-h-0 flex flex-col gap-2 order-6 md:order-none">
           <div className="flex items-center justify-between shrink-0">
             <div>
-              <h2 className="text-lg font-bold text-foreground">Continue where you left off</h2>
+              <h2 className="text-lg font-bold text-foreground">
+                {filter === 'all' ? 'Continue where you left off' : `${filter.charAt(0).toUpperCase() + filter.slice(1)} Cases Queue`}
+              </h2>
             </div>
             <Button variant="outline" size="sm" onClick={loadDashboardData} className="gap-2 h-7 text-xs">
               <RefreshCw className="h-3 w-3" /> Refresh
@@ -470,7 +500,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {queue.map((item) => (
+                  {filteredQueue.map((item) => (
                     <tr key={item.id} className="hover:bg-muted/50 transition-colors group">
                       <td className="px-4 py-2 font-medium text-foreground">
                         <div className="flex items-center gap-2">

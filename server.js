@@ -143,15 +143,18 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
                                     "symptoms": [
                                         { "text": "symptom name", "severity": "mild/moderate/severe", "duration": "e.g. 3 days", "confidenceScore": 90 }
                                     ],
+                                    "criticality": "Critical" | "Stable",
+                                    "criticality_reason": "Reason for assessment",
                                     "formatted_text": "# Medical Report\n\n**Hospital:** ...\n\n## Symptoms\n- ...\n\n## Diagnosis\n..."
                                 }
                                 
                                 Instructions:
                                 1. Extract all symptoms mentioned.
-                                2. Create a comprehensive Markdown report in 'formatted_text' including ALL sections (History, Vitals, Lab Results, Diagnosis, Plan).
-                                3. Ensure NO clinical information is lost in the formatted text.
-                                4. Do NOT include PII (Patient Name, ID, Phone).
-                                5. Return ONLY JSON.`
+                                2. Assess if the patient is Critical or Stable based on symptoms/vitals.
+                                3. Create a comprehensive Markdown report in 'formatted_text' including ALL sections (History, Vitals, Lab Results, Diagnosis, Plan).
+                                4. Ensure NO clinical information is lost in the formatted text.
+                                5. Do NOT include PII (Patient Name, ID, Phone).
+                                6. Return ONLY JSON.`
                             },
                             {
                                 role: 'user',
@@ -279,7 +282,9 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
                 visitNotes: clinicalData.formatted_text || cleanedText,
                 sourceType: 'ocr',
                 sourceDocumentId: document.id,
-                confidenceScore: 85
+                confidenceScore: 85,
+                criticality: clinicalData.criticality || 'Stable',
+                criticalityReason: clinicalData.criticality_reason
             });
         }
 

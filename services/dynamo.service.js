@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, QueryCommand, ScanCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
@@ -42,6 +42,8 @@ export const createVisit = async (visitData) => {
         source_type: visitData.sourceType,
         source_document_id: visitData.sourceDocumentId,
         confidence_score: visitData.confidenceScore,
+        criticality: visitData.criticality || 'Stable',
+        criticality_reason: visitData.criticalityReason,
         status: 'in_progress',
         created_at: new Date().toISOString()
     };
@@ -95,6 +97,19 @@ export const updateVisit = async (visitId, updates) => {
         return response.Attributes;
     } catch (error) {
         console.error("Error updating visit:", error);
+        throw error;
+    }
+};
+
+export const deleteVisit = async (visitId) => {
+    try {
+        await docClient.send(new DeleteCommand({
+            TableName: "Visits",
+            Key: { id: visitId }
+        }));
+        return { success: true };
+    } catch (error) {
+        console.error("Error deleting visit:", error);
         throw error;
     }
 };
@@ -310,7 +325,7 @@ export const getQueue = async () => {
 
         const realVisits = visits.map(v => ({
             ...v,
-            has_high_risk: (v.confidence_score < 70),
+            has_high_risk: (v.criticality === 'Critical' || v.confidence_score < 70),
             needs_follow_up: false
         }));
 

@@ -15,12 +15,14 @@ export default function Upload() {
   const [module, setModule] = useState<string>("");
   const [useLLM, setUseLLM] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [visitId, setVisitId] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      setVisitId(null); // Reset on new file
     }
   };
 
@@ -28,6 +30,7 @@ export default function Upload() {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
+      setVisitId(null); // Reset on new file
     }
   };
 
@@ -42,6 +45,7 @@ export default function Upload() {
     }
 
     setProcessing(true);
+    setVisitId(null);
 
     try {
       const formData = new FormData();
@@ -68,7 +72,11 @@ export default function Upload() {
       });
 
       if (data.visitId) {
-        navigate(`/visit/${data.visitId}`);
+        setVisitId(data.visitId);
+        // Auto-navigate after a short delay, but allow user to click button too
+        setTimeout(() => {
+          navigate(`/visit/${data.visitId}`);
+        }, 1500);
       } else {
         navigate(`/result/${data.documentId}`);
       }
@@ -177,6 +185,16 @@ export default function Upload() {
           >
             {processing ? "Processing..." : "Process Document"}
           </Button>
+
+          {visitId && (
+            <Button
+              onClick={() => navigate(`/visit/${visitId}`)}
+              className="w-full mt-4 h-12 text-base bg-green-600 hover:bg-green-700 text-white animate-in fade-in slide-in-from-bottom-4"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              View Clinical Report
+            </Button>
+          )}
         </Card>
       </div>
     </div>

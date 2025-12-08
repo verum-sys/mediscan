@@ -447,7 +447,7 @@ export default function DDXTool() {
                                     ) : (
                                         <div className="space-y-4">
                                             {differentials.map((diff, index) => (
-                                                <div key={diff.id} className="p-4 rounded-lg border bg-muted/30">
+                                                <div key={diff.id || `diff-${index}`} className="p-4 rounded-lg border bg-muted/30">
                                                     <div className="flex items-start justify-between mb-2">
                                                         <div className="flex items-center gap-2">
                                                             <Badge className="bg-primary">{diff.rank}</Badge>
@@ -472,7 +472,7 @@ export default function DDXTool() {
                                                             <p className="text-xs font-medium mb-2">Suggested Tests:</p>
                                                             <div className="flex flex-wrap gap-1">
                                                                 {diff.suggested_investigations.map((test: string, idx: number) => (
-                                                                    <Badge key={idx} variant="secondary" className="text-xs">
+                                                                    <Badge key={`test-${diff.id}-${idx}`} variant="secondary" className="text-xs">
                                                                         {test}
                                                                     </Badge>
                                                                 ))}
@@ -498,7 +498,7 @@ export default function DDXTool() {
                                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
                                         {messages.map((msg, idx) => (
                                             <div
-                                                key={idx}
+                                                key={`msg-${idx}`}
                                                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                             >
                                                 <div

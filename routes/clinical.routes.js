@@ -59,6 +59,15 @@ router.patch('/visits/:id', async (req, res) => {
     }
 });
 
+router.delete('/visits/:id', async (req, res) => {
+    try {
+        const result = await service.deleteVisit(req.params.id);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.post('/visits/:id/symptoms', async (req, res) => {
     try {
         const result = await service.addSymptoms(req.params.id, req.body.symptoms);
