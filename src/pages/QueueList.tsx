@@ -199,40 +199,50 @@ export default function QueueList() {
         <div className="min-h-screen bg-background p-6">
             <div className="container mx-auto max-w-7xl">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-8">
-                    <Button variant="ghost" onClick={() => navigate("/")}>
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back to Dashboard
-                    </Button>
-                    <div className="flex-1">
+                <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6 md:mb-8">
+                    <div className="flex items-center justify-between w-full md:w-auto">
+                        <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="-ml-3 md:ml-0">
+                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            Back
+                        </Button>
+                        <Button className="md:hidden" size="sm" onClick={() => navigate("/upload")}>
+                            <Plus className="h-4 w-4 mr-1" />
+                            New
+                        </Button>
+                    </div>
+
+                    <div className="flex-1 w-full md:w-auto">
                         <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-lg ${config.bgColor}`}>
                                 <config.icon className={`h-6 w-6 ${config.color}`} />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold">{config.title}</h1>
-                                <p className="text-muted-foreground">{config.description}</p>
+                                <h1 className="text-xl md:text-2xl font-bold">{config.title}</h1>
+                                <p className="text-sm md:text-base text-muted-foreground line-clamp-1">{config.description}</p>
                             </div>
                         </div>
                     </div>
-                    <Button onClick={() => navigate("/upload")}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        New Case
-                    </Button>
+
+                    <div className="hidden md:block">
+                        <Button onClick={() => navigate("/upload")}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            New Case
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Filters & Search */}
-                <div className="flex gap-4 mb-6">
-                    <div className="relative flex-1 max-w-md">
+                <div className="flex flex-col md:flex-row gap-4 mb-6">
+                    <div className="relative flex-1 max-w-md w-full">
                         <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Search by ID, symptoms, or department..."
-                            className="pl-9"
+                            placeholder="Search by ID, symptoms..."
+                            className="pl-9 w-full"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <Button variant="outline" onClick={loadQueue}>
+                    <Button variant="outline" onClick={loadQueue} className="w-full md:w-auto">
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Refresh
                     </Button>
@@ -254,31 +264,31 @@ export default function QueueList() {
                     <div className="grid gap-4">
                         {filteredQueue.map((item) => (
                             <Card key={item.id} className="p-4 hover:shadow-md transition-all border-l-4" style={{ borderLeftColor: category === 'critical' ? '#ef4444' : category === 'moderate' ? '#f97316' : category === 'incomplete' ? '#eab308' : '#3b82f6' }}>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center font-bold text-xs">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="flex items-start gap-4 w-full md:w-auto">
+                                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-muted flex items-center justify-center font-bold text-xs shrink-0">
                                             {item.visit_number.split('-').pop()}
                                         </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <h3 className="font-bold text-lg">{item.visit_number}</h3>
-                                                <Badge variant="outline" className="text-xs">{item.department}</Badge>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                <h3 className="font-bold text-base md:text-lg">{item.visit_number}</h3>
+                                                <Badge variant="outline" className="text-[10px] md:text-xs truncate max-w-[120px]">{item.department}</Badge>
                                                 {item.criticality === 'Critical' && (
-                                                    <Badge variant="destructive" className="animate-pulse">Critical</Badge>
+                                                    <Badge variant="destructive" className="animate-pulse text-[10px] md:text-xs">Critical</Badge>
                                                 )}
                                             </div>
-                                            <p className="font-medium">{item.chief_complaint}</p>
+                                            <p className="font-medium text-sm md:text-base line-clamp-1">{item.chief_complaint}</p>
                                             <p className="text-xs text-muted-foreground mt-1">
                                                 {item.facility_name} • {new Date(item.created_at).toLocaleString()}
                                             </p>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-6">
-                                        <div className="text-right">
-                                            <p className="text-xs text-muted-foreground uppercase font-bold">Confidence</p>
-                                            <div className="flex items-center justify-end gap-2">
-                                                <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                                    <div className="flex w-full md:w-auto items-center justify-between md:justify-end gap-4 md:gap-6 border-t md:border-t-0 pt-4 md:pt-0">
+                                        <div className="text-left md:text-right">
+                                            <p className="text-[10px] md:text-xs text-muted-foreground uppercase font-bold">Confidence</p>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-16 md:w-16 h-2 bg-muted rounded-full overflow-hidden">
                                                     <div
                                                         className={`h-full ${item.confidence_score >= 80 ? 'bg-green-500' : 'bg-yellow-500'}`}
                                                         style={{ width: `${item.confidence_score}%` }}
@@ -287,7 +297,7 @@ export default function QueueList() {
                                                 <span className="font-bold text-sm">{item.confidence_score}%</span>
                                             </div>
                                         </div>
-                                        <Button onClick={() => navigate(`/visit/${item.id}`)}>
+                                        <Button size="sm" onClick={() => navigate(`/visit/${item.id}`)} className="shrink-0">
                                             View Details
                                         </Button>
                                     </div>

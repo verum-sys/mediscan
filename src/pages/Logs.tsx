@@ -121,14 +121,14 @@ export default function Logs() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-12">
       <div className="container mx-auto px-6 max-w-7xl">
-        <div className="mb-8 flex justify-between items-end">
+        <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold mb-4">Audit Logs & Analytics</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-3xl md:text-4xl font-bold mb-2 md:mb-4">Audit Logs & Analytics</h1>
+            <p className="text-muted-foreground text-sm md:text-base">
               Complete history and statistical breakdown
             </p>
           </div>
-          <Card className="glass-card p-4 flex items-center gap-4 bg-primary/5 border-primary/20">
+          <Card className="glass-card p-4 flex items-center justify-between gap-4 bg-primary/5 border-primary/20 w-full md:w-auto">
             <div>
               <p className="text-sm text-muted-foreground">Today's Total</p>
               <h3 className="text-2xl font-bold">{logs.filter(l => new Date(l.created_at).toDateString() === new Date().toDateString()).length}</h3>
