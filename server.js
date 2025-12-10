@@ -2,10 +2,9 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import clinicalRoutes from './routes/clinical.routes.js';
-import { createVisit, updateVisit, addSymptoms, addMedications, createAuditLog } from './services/dynamo.service.js';
+import { createVisit, updateVisit, addSymptoms, addMedications, createAuditLog, createDocument, createLLMTask } from './services/dynamo.service.js';
 
 dotenv.config();
 
@@ -31,25 +30,6 @@ app.use((err, req, res, next) => {
 
 // Configure Multer for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
-
-// Initialize Supabase
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-    console.warn('Missing Supabase configuration - Backend will fail on DB operations');
-    // process.exit(1); // Don't crash the server on Vercel
-}
-
-const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : {
-    from: () => ({
-        select: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        insert: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        update: () => ({ data: null, error: { message: 'Supabase not configured' } }),
-        eq: () => ({ data: null, error: { message: 'Supabase not configured' }, single: () => ({ data: null, error: { message: 'Supabase not configured' } }) })
-    })
-};
-
 
 
 app.post('/process-document', upload.single('file'), async (req, res) => {
@@ -194,25 +174,18 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
             ? (file.size > 10 * 1024 * 1024 ? 'batch' : 'inline')
             : 'image';
 
-        // Store document in database
+        // Store document in DynamoDB
         let document;
         try {
-            const { data, error: docError } = await supabase
-                .from('documents')
-                .insert({
-                    filename: file.originalname,
-                    // module_id: moduleId, 
-                    raw_text: rawText,
-                    cleaned_text: cleanedText,
-                    processing_method: processingMethod,
-                    processing_time_ms: processingTime,
-                    status: 'completed',
-                })
-                .select()
-                .single();
-
-            if (docError) throw docError;
-            document = data;
+            document = await createDocument({
+                filename: file.originalname,
+                // module_id: moduleId, 
+                raw_text: rawText,
+                cleaned_text: cleanedText,
+                processing_method: processingMethod,
+                processing_time_ms: processingTime,
+                status: 'completed',
+            });
         } catch (err) {
             console.error('Document insert error:', err);
             console.log('⚠️ Database failed. Using MOCK document.');
@@ -240,7 +213,7 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
         // Store LLM task if used
         if (useLLM) {
             try {
-                await supabase.from('llm_tasks').insert({
+                await createLLMTask({
                     document_id: document.id,
                     model: process.env.LLM_MODEL || 'llama-3.3-70b',
                     status: 'completed',

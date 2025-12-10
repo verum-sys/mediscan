@@ -13,7 +13,8 @@ import {
     Activity,
     TrendingUp,
     Clock,
-    Plus
+    Plus,
+    Bed
 } from "lucide-react";
 import { getApiUrl } from "@/config";
 
@@ -30,6 +31,7 @@ interface QueueItem {
     has_incomplete_data: boolean;
     needs_follow_up: boolean;
     criticality?: 'Critical' | 'Stable';
+    is_ipd_admission?: boolean;
 }
 
 export default function QueueList() {
@@ -71,6 +73,14 @@ export default function QueueList() {
             color: "text-yellow-500",
             bgColor: "bg-yellow-500/10",
             borderColor: "border-yellow-500/20"
+        },
+        ipd: {
+            title: "IPD Admissions",
+            description: "Patients admitted for In-Patient care",
+            icon: Bed,
+            color: "text-purple-500",
+            bgColor: "bg-purple-500/10",
+            borderColor: "border-purple-500/20"
         }
     };
 
@@ -164,6 +174,7 @@ export default function QueueList() {
                 if (category === 'moderate') return item.needs_follow_up && !item.has_high_risk;
                 if (category === 'stable') return !item.has_high_risk && !item.needs_follow_up && !item.has_incomplete_data;
                 if (category === 'incomplete') return item.has_incomplete_data;
+                if (category === 'ipd') return item.is_ipd_admission;
                 return true;
             });
 

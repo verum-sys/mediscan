@@ -272,19 +272,19 @@ export default function Triage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-background via-background to-red-500/5 py-8">
             <div className="container mx-auto px-6 max-w-7xl">
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
+                <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+                    <div className="flex items-center gap-4 w-full md:w-auto">
                         <div className="p-3 bg-red-500/10 rounded-xl">
                             <Siren className="w-8 h-8 text-red-500 animate-pulse" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold">Emergency Triage</h1>
-                            <p className="text-muted-foreground">ESI Standard Clinical Decision Support</p>
+                            <h1 className="text-2xl md:text-3xl font-bold">Emergency Triage</h1>
+                            <p className="text-sm md:text-base text-muted-foreground">ESI Standard Clinical Decision Support</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <Label>Mass Casualty Mode</Label>
+                    <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+                        <div className="flex items-center gap-2 mr-2">
+                            <Label className="whitespace-nowrap">Mass Casualty</Label>
                             <Checkbox
                                 checked={massCasualtyMode}
                                 onCheckedChange={(c) => setMassCasualtyMode(!!c)}
@@ -293,16 +293,19 @@ export default function Triage() {
                         <Button
                             variant={activeTab === "queue" ? "default" : "outline"}
                             onClick={() => setActiveTab("queue")}
+                            size="sm"
                         >
-                            <Users className="w-4 h-4 mr-2" />
-                            Live Queue
+                            <Users className="w-4 h-4 md:mr-2" />
+                            <span className="hidden md:inline">Live Queue</span>
                         </Button>
                         <Button
                             variant={activeTab === "intake" ? "default" : "outline"}
                             onClick={() => setActiveTab("intake")}
+                            size="sm"
                         >
-                            <Stethoscope className="w-4 h-4 mr-2" />
-                            New Patient
+                            <Stethoscope className="w-4 h-4 md:mr-2" />
+                            <span className="hidden md:inline">New Patient</span>
+                            <span className="md:hidden">New</span>
                         </Button>
                     </div>
                 </div>

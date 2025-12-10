@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, FileText, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Search, FileText, Clock, Bed } from "lucide-react";
 import { formatDistance } from "date-fns";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,11 +11,12 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { getApiUrl } from "@/config";
 
 export default function Logs() {
+  const navigate = useNavigate();
   const [logs, setLogs] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const [stats, setStats] = useState({ highRisk: 0, incompleteData: 0, followUp: 0 });
+  const [stats, setStats] = useState({ highRisk: 0, incompleteData: 0, followUp: 0, opdToIpdCount: 0 });
   const [analytics, setAnalytics] = useState<any>({ monthly: [], yearly: [], daily: [], doctor: [] });
 
   useEffect(() => {
@@ -50,27 +51,22 @@ export default function Logs() {
 
   const loadLogs = async () => {
     try {
-      const { data, error } = await supabase
-        .from("audit_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
+      const res = await fetch(getApiUrl('/api/audit-logs'));
+      let realLogs = [];
+      if (res.ok) {
+        realLogs = await res.json();
+      }
 
-      // MOCK LOGS for Demo
+      // MOCK LOGS for Demo (keep mocks if DB is empty for demo purposes)
       const MOCK_LOGS = [
         { id: 'm1', file_name: 'patient_scan_402.pdf', status: 'completed', created_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(), elapsed_ms: 1240 },
         { id: 'm2', file_name: 'lab_report_blood_work.jpg', status: 'completed', created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(), elapsed_ms: 850 },
         { id: 'm3', file_name: 'xray_chest_pa.png', status: 'processing', created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(), elapsed_ms: null },
-        { id: 'm4', file_name: 'discharge_summary_v2.pdf', status: 'completed', created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), elapsed_ms: 2100 },
-        { id: 'm5', file_name: 'prescription_scan_001.jpg', status: 'failed', created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), elapsed_ms: 4500 },
-        { id: 'm6', file_name: 'mri_scan_report.pdf', status: 'completed', created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), elapsed_ms: 3200 },
-        { id: 'm7', file_name: 'referral_letter_dr_smith.docx', status: 'completed', created_at: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(), elapsed_ms: 980 },
-        { id: 'm8', file_name: 'insurance_claim_form.pdf', status: 'completed', created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), elapsed_ms: 1500 },
       ];
 
-      const realLogs = data || [];
       // Combine real logs with mock logs (real first)
-      setLogs([...realLogs, ...MOCK_LOGS]);
+      // If we have real logs, maybe we don't prefer mocks, but let's keep them for density if needed
+      setLogs(realLogs.length > 0 ? realLogs : [...realLogs, ...MOCK_LOGS]);
 
     } catch (error) {
       console.error("Error loading logs:", error);
@@ -144,7 +140,7 @@ export default function Logs() {
         </div>
 
         {/* Moved Stats from Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card className="glass-card p-6 border-red-500/20">
             <div className="flex items-center justify-between">
               <div>
@@ -189,12 +185,30 @@ export default function Logs() {
               <span>Pending</span>
             </div>
           </Card>
+
+          <Card
+            className="glass-card p-6 border-blue-500/20 cursor-pointer hover:bg-blue-500/5 transition-colors"
+            onClick={() => navigate('/queue/ipd')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">IPD Admissions</p>
+                <h3 className="text-3xl font-bold text-blue-500">{stats.opdToIpdCount || 0}</h3>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <Bed className="h-6 w-6 text-blue-500" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm text-blue-500">
+              <span>View List →</span>
+            </div>
+          </Card>
         </div>
 
         {/* Analytics Tabs */}
         <div className="mb-8">
           <Tabs defaultValue="monthly" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-4 gap-2 h-auto">
               <TabsTrigger value="monthly">Monthly Wise</TabsTrigger>
               <TabsTrigger value="yearly">Yearly Wise</TabsTrigger>
               <TabsTrigger value="daily">Day Wise</TabsTrigger>
@@ -228,8 +242,38 @@ export default function Logs() {
           </div>
         </Card>
 
-        {/* Logs Table */}
-        <Card className="glass-card shadow-large overflow-hidden">
+        {/* Logs List (Mobile Cards) */}
+        <div className="md:hidden space-y-4">
+          {loading ? (
+            <p className="text-center text-muted-foreground">Loading...</p>
+          ) : filteredLogs.length === 0 ? (
+            <p className="text-center text-muted-foreground">No logs found</p>
+          ) : (
+            filteredLogs.map((log) => (
+              <Card key={log.id} className="glass-card p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    <span className="font-semibold text-sm truncate max-w-[200px]">{log.file_name}</span>
+                  </div>
+                  <Badge className={getStatusColor(log.status)} variant="secondary">
+                    {log.status}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center text-xs text-muted-foreground mt-3">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {formatDistance(new Date(log.created_at), new Date(), { addSuffix: true })}
+                  </div>
+                  <span>{log.elapsed_ms ? `${log.elapsed_ms}ms` : "-"}</span>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Logs Table (Desktop) */}
+        <Card className="glass-card shadow-large overflow-hidden hidden md:block">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-muted/50">

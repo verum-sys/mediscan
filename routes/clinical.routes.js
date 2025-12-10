@@ -131,12 +131,31 @@ router.post('/chat', async (req, res) => {
     }
 });
 
+
 router.post('/chat/summarize', async (req, res) => {
     try {
         const result = await service.summarizeConversation(req.body.messages);
         res.json(result);
     } catch (e) {
         res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/audit-logs', async (req, res) => {
+    try {
+        const result = await service.getAuditLogs();
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/documents/:id', async (req, res) => {
+    try {
+        const result = await service.getDocument(req.params.id);
+        res.json(result);
+    } catch (e) {
+        res.status(404).json({ error: 'Document not found' });
     }
 });
 

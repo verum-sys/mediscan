@@ -343,51 +343,55 @@ export default function DDXTool() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-8">
             <div className="container mx-auto px-6 max-w-6xl">
-                <div className="flex items-center gap-4 mb-6">
-                    <Button variant="ghost" onClick={() => navigate("/")}>
+                <div className="flex flex-col gap-2 mb-6">
+                    <Button variant="ghost" className="w-fit -ml-2 text-muted-foreground" onClick={() => navigate("/")}>
                         <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back
+                        Back to Dashboard
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-bold">Differential Diagnosis Tool</h1>
-                        <p className="text-muted-foreground">Enter symptoms to generate differential diagnoses</p>
+                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Differential Diagnosis</h1>
+                        <p className="text-muted-foreground text-sm md:text-base">Enter symptoms to generate clinical insights</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Input Section (Left - 4 cols) */}
                     <div className="lg:col-span-4 space-y-6">
-                        <Card className="glass-card p-6">
-                            <h2 className="text-xl font-semibold mb-4">Symptoms</h2>
+                        <Card className="glass-card p-5 md:p-6">
+                            <h2 className="text-lg md:text-xl font-semibold mb-4">Symptoms</h2>
 
                             <div className="space-y-3 mb-4">
                                 {symptoms.map((symptom, index) => (
                                     <div
                                         key={index}
-                                        className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                                        className="flex items-center justify-between p-3 bg-muted/50 border rounded-lg text-sm"
                                     >
-                                        <span>{symptom}</span>
+                                        <span className="font-medium">{symptom}</span>
                                         <Button
                                             variant="ghost"
-                                            size="sm"
+                                            size="icon"
+                                            className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
                                             onClick={() => removeSymptom(index)}
                                         >
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 ))}
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Quick Patient Search..."
-                                        className="pl-9"
-                                        value={newSymptom}
-                                        onChange={(e) => setNewSymptom(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && addSymptom()}
-                                    />
-                                </div>    <Button onClick={addSymptom}>
-                                    <Plus className="h-4 w-4" />
-                                </Button>
+                                <div className="flex gap-2 items-center">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Add patient symptom..."
+                                            className="pl-9"
+                                            value={newSymptom}
+                                            onChange={(e) => setNewSymptom(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && addSymptom()}
+                                        />
+                                    </div>
+                                    <Button onClick={addSymptom} size="icon" className="shrink-0 bg-primary">
+                                        <Plus className="h-5 w-5" />
+                                    </Button>
+                                </div>
                             </div>
 
                             <div className="mb-4">
@@ -429,13 +433,13 @@ export default function DDXTool() {
                     {/* Results/Chat Section (Right - 8 cols) */}
                     <div className="lg:col-span-8">
                         <Tabs defaultValue="results" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2 mb-4">
-                                <TabsTrigger value="results">DDX Results</TabsTrigger>
-                                <TabsTrigger value="chat">Clinical Assistant</TabsTrigger>
+                            <TabsList className="grid w-full grid-cols-2 mb-4 h-auto">
+                                <TabsTrigger value="results" className="py-2">DDX Results</TabsTrigger>
+                                <TabsTrigger value="chat" className="py-2">Clinical Assistant</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="results">
-                                <Card className="glass-card p-6 min-h-[600px]">
+                                <Card className="glass-card p-6 h-[500px] lg:h-[600px] overflow-y-auto">
                                     <h2 className="text-xl font-semibold mb-4">Differential Diagnoses</h2>
 
                                     {differentials.length === 0 ? (
@@ -449,7 +453,7 @@ export default function DDXTool() {
                                             {differentials.map((diff, index) => (
                                                 <div key={diff.id || `diff-${index}`} className="p-4 rounded-lg border bg-muted/30">
                                                     <div className="flex items-start justify-between mb-2">
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-2 flex-wrap">
                                                             <Badge className="bg-primary">{diff.rank}</Badge>
                                                             <h3 className="font-semibold">{diff.condition_name}</h3>
                                                             {diff.icd10_code && (
@@ -487,7 +491,7 @@ export default function DDXTool() {
                             </TabsContent>
 
                             <TabsContent value="chat">
-                                <Card className="glass-card flex flex-col h-[600px]">
+                                <Card className="glass-card flex flex-col h-[500px] lg:h-[600px]">
                                     {/* Chat Header */}
                                     <div className="p-4 border-b flex items-center gap-2">
                                         <Bot className="h-5 w-5 text-primary" />
@@ -502,7 +506,7 @@ export default function DDXTool() {
                                                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                             >
                                                 <div
-                                                    className={`max-w-[80%] p-3 rounded-lg text-sm ${msg.role === 'user'
+                                                    className={`max-w-[85%] p-3 rounded-lg text-sm ${msg.role === 'user'
                                                         ? 'bg-primary text-primary-foreground'
                                                         : 'bg-muted'
                                                         }`}
@@ -527,11 +531,12 @@ export default function DDXTool() {
                                     <div className="p-4 border-t">
                                         <div className="flex gap-2">
                                             <Input
-                                                placeholder="Type patient details (e.g., 45M with severe chest pain...)"
+                                                placeholder="Type patient details..."
                                                 value={chatInput}
                                                 onChange={(e) => setChatInput(e.target.value)}
                                                 onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()}
                                                 disabled={chatLoading}
+                                                className="text-base" // Prevent zoom on mobile
                                             />
                                             <Button onClick={handleChatSubmit} disabled={chatLoading || !chatInput.trim()}>
                                                 <Send className="h-4 w-4" />

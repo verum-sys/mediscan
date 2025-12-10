@@ -37,6 +37,7 @@ interface Stats {
   highRisk: number;
   incompleteData: number;
   followUp: number;
+  opdToIpdCount?: number;
   storageStatus?: 'database' | 'memory';
 }
 
@@ -290,14 +291,14 @@ export default function Dashboard() {
     if (filter === 'moderate') return item.needs_follow_up;
     if (filter === 'stable') return !item.has_high_risk && !item.needs_follow_up;
     return true;
-  });
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return (
     <div className="min-h-screen overflow-auto bg-background text-foreground font-sans transition-colors duration-300 flex flex-col">
       <div className="container mx-auto px-6 py-4 max-w-7xl flex flex-col gap-4">
 
         {/* Section 1: Header Area */}
-        <div className="flex flex-row justify-between items-center shrink-0 order-1 md:order-none">
+        <div className="flex flex-row justify-between items-center shrink-0">
           <div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent leading-tight">
               DiagNXT
@@ -306,18 +307,19 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-6 bg-card border border-border px-4 py-2 rounded-lg shadow-sm">
-              <div className="text-right">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Avg Response Time</p>
-                <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center gap-2 md:gap-6 bg-card border border-border px-2 md:px-4 py-2 rounded-lg shadow-sm">
+              <div className="text-right flex items-center gap-2 md:block">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold hidden md:block">Avg Response Time</p>
+                <div className="flex items-center justify-end gap-1 md:gap-2">
                   <Clock className="w-3 h-3 text-emerald-500" />
-                  <p className="text-sm font-bold text-foreground">3 mins</p>
+                  <p className="text-sm font-bold text-foreground">3m</p>
                 </div>
               </div>
+              <div className="h-4 w-[1px] bg-border mx-1 md:hidden"></div>
               <div className="hidden md:block h-6 w-[1px] bg-border"></div>
-              <div className="hidden md:block text-right">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Model Confidence</p>
-                <div className="flex items-center justify-end gap-2">
+              <div className="text-right flex items-center gap-2 md:block">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold hidden md:block">Model Confidence</p>
+                <div className="flex items-center justify-end gap-1 md:gap-2">
                   <Activity className="w-3 h-3 text-blue-500" />
                   <p className="text-sm font-bold text-foreground">97%</p>
                 </div>
@@ -327,7 +329,7 @@ export default function Dashboard() {
         </div>
 
         {/* Section 2: Status Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0 order-2 md:order-none">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
           <Card className="bg-[#ef4444] border-none p-3 hover:shadow-md transition-all">
             <div className="flex justify-between items-start mb-1">
               <h3 className="text-white font-semibold text-xs">Critical Cases</h3>
@@ -373,6 +375,7 @@ export default function Dashboard() {
             </Button>
           </Card>
 
+
           <Card className="bg-[#eab308] border-none p-3 hover:shadow-md transition-all">
             <div className="flex justify-between items-start mb-1">
               <h3 className="text-white font-semibold text-xs">Incomplete Data</h3>
@@ -387,12 +390,14 @@ export default function Dashboard() {
               Fix Now
             </Button>
           </Card>
+
+
         </div>
 
         {/* Section 3: Split Middle Section */}
-        <div className="contents md:grid md:grid-cols-2 gap-4 shrink-0 md:h-[280px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0 md:h-[280px]">
           {/* Left Column: Triage Snapshot */}
-          <Card className="bg-card border-border p-5 flex flex-col items-center justify-center h-full shadow-sm order-3 md:order-none">
+          <Card className="bg-card border-border p-5 flex flex-col items-center justify-center h-full shadow-sm">
             <div className="w-full flex justify-between items-center mb-4 border-b border-border pb-3">
               <h3 className="text-lg font-semibold text-foreground">Today's Triage Snapshot</h3>
               <Badge variant="outline" className="text-xs h-6">Live Data</Badge>
@@ -433,7 +438,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Right Column: Live Medical Feed Widget */}
-          <div className="flex flex-col h-full overflow-hidden order-5 md:order-none min-h-[300px] md:min-h-0">
+          <div className="flex flex-col h-full overflow-hidden min-h-[300px] md:min-h-0">
             <div className="flex-1 overflow-hidden h-full">
               <ArticleCarousel />
             </div>
@@ -441,7 +446,7 @@ export default function Dashboard() {
         </div>
 
         {/* Section 4: Action Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 shrink-0 order-4 md:order-none">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 shrink-0">
           {quickActions.map((action, index) => (
             <Card
               key={index}
@@ -466,7 +471,7 @@ export default function Dashboard() {
         </div>
 
         {/* Section 5: Patient Table */}
-        <div className="flex-1 min-h-0 flex flex-col gap-2 order-6 md:order-none">
+        <div className="flex-1 min-h-0 flex flex-col gap-2">
           <div className="flex items-center justify-between shrink-0">
             <div>
               <h2 className="text-lg font-bold text-foreground">
@@ -489,7 +494,53 @@ export default function Dashboard() {
             </Card>
           ) : (
             <div className="border border-border rounded-xl overflow-auto bg-card shadow-sm h-[400px] md:h-[500px] min-h-[300px]">
-              <table className="w-full text-sm text-left">
+
+              {/* Mobile Card Layout */}
+              <div className="md:hidden divide-y divide-border">
+                {filteredQueue.map((item) => (
+                  <div key={item.id} className="p-4 flex flex-col gap-3 hover:bg-muted/50 transition-colors" onClick={() => navigate(`/visit/${item.id}`)}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                          {item.visit_number.slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm">{item.visit_number}</p>
+                          <p className="text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant={item.has_high_risk ? "destructive" : item.needs_follow_up ? "secondary" : "outline"}
+                        className={`text-[10px] h-5 border-0 ${item.has_high_risk ? 'bg-red-100 text-red-700' :
+                          item.needs_follow_up ? 'bg-orange-100 text-orange-700' :
+                            'bg-blue-50 text-blue-700'
+                          }`}
+                      >
+                        {item.has_high_risk ? "Critical" : item.needs_follow_up ? "Moderate" : "Stable"}
+                      </Badge>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Chief Complaint</p>
+                      <p className="text-sm font-medium">{item.chief_complaint}</p>
+                    </div>
+
+                    <div className="flex justify-between items-center mt-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground">AI Confidence</span>
+                        <span className={`text-xs font-bold ${item.confidence_score >= 80 ? 'text-emerald-500' : 'text-yellow-500'}`}>{item.confidence_score}%</span>
+                      </div>
+                      <Button size="sm" className="h-7 text-xs" onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/visit/${item.id}`);
+                      }}>Open Case</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table Layout */}
+              <table className="w-full text-sm text-left hidden md:table">
                 <thead className="bg-muted/50 text-muted-foreground font-semibold border-b border-border sticky top-0 z-10">
                   <tr>
                     <th className="px-4 py-3 text-xs">Patient ID</th>

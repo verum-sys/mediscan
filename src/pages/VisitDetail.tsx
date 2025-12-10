@@ -36,6 +36,7 @@ interface Visit {
     visit_notes?: string;
     criticality?: 'Critical' | 'Stable';
     criticality_reason?: string;
+    is_ipd_admission?: boolean;
 }
 
 interface Symptom {
@@ -362,89 +363,133 @@ export default function VisitDetail() {
         <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-8">
             <div className="container mx-auto px-6 max-w-7xl">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-6">
-                    <Button variant="ghost" onClick={() => navigate("/")}>
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back
-                    </Button>
-                    <div className="flex-1">
-                        {isEditingHeader ? (
-                            <div className="flex flex-col gap-2 max-w-md">
-                                <Input
-                                    value={editedVisitNumber}
-                                    onChange={(e) => setEditedVisitNumber(e.target.value)}
-                                    placeholder="Visit Number / Patient ID"
-                                    className="text-lg font-bold"
-                                />
-                                <div className="flex gap-2">
-                                    <Input
-                                        value={editedProviderName}
-                                        onChange={(e) => setEditedProviderName(e.target.value)}
-                                        placeholder="Doctor Name"
-                                        className="w-1/2"
-                                    />
-                                    <Select value={editedDepartment} onValueChange={setEditedDepartment}>
-                                        <SelectTrigger className="w-1/2">
-                                            <SelectValue placeholder="Select Department" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {departments.map(dept => (
-                                                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="flex gap-2 mt-2">
-                                    <Button size="sm" onClick={handleSaveHeader}>Save</Button>
-                                    <Button size="sm" variant="ghost" onClick={() => setIsEditingHeader(false)}>Cancel</Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="group cursor-pointer" onClick={() => setIsEditingHeader(true)}>
-                                <div className="flex items-center gap-2">
-                                    <h1 className="text-3xl font-bold group-hover:text-primary transition-colors">{visit.visit_number}</h1>
-                                    <Edit className="h-4 w-4 opacity-0 group-hover:opacity-50" />
-                                </div>
-                                <p className="text-muted-foreground">
-                                    {visit.provider_name} • {visit.department}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {visit.criticality === 'Critical' && (
-                            <Badge variant="destructive" className="animate-pulse">
-                                Critical
-                            </Badge>
-                        )}
-                        <Badge variant={visit.status === 'completed' ? 'default' : 'secondary'}>
-                            {visit.status}
-                        </Badge>
-                        <div className={`text-lg font-semibold ${getConfidenceColor(visit.confidence_score)}`}>
-                            {visit.confidence_score}%
-                        </div>
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={async () => {
-                                if (confirm("Are you sure you want to delete this patient record? This action cannot be undone.")) {
-                                    try {
-                                        const res = await fetch(getApiUrl(`/api/visits/${id}`), { method: 'DELETE' });
-                                        if (res.ok) {
-                                            toast({ title: "Patient record deleted" });
-                                            navigate("/");
-                                        } else {
-                                            throw new Error("Failed to delete");
-                                        }
-                                    } catch (e) {
-                                        toast({ title: "Error deleting record", variant: "destructive" });
-                                    }
-                                }
-                            }}
-                        >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
+                {/* Header */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        <Button variant="ghost" size="icon" className="-ml-3 md:ml-0" onClick={() => navigate("/")}>
+                            <ArrowLeft className="h-5 w-5" />
                         </Button>
+                        <div className="flex-1">
+                            {isEditingHeader ? (
+                                <div className="flex flex-col gap-2 max-w-md">
+                                    <Input
+                                        value={editedVisitNumber}
+                                        onChange={(e) => setEditedVisitNumber(e.target.value)}
+                                        placeholder="Visit #"
+                                        className="text-lg font-bold h-9"
+                                    />
+                                    <div className="flex gap-2">
+                                        <Input
+                                            value={editedProviderName}
+                                            onChange={(e) => setEditedProviderName(e.target.value)}
+                                            placeholder="Provider"
+                                            className="w-1/2 h-8 text-sm"
+                                        />
+                                        <Select value={editedDepartment} onValueChange={setEditedDepartment}>
+                                            <SelectTrigger className="w-1/2 h-8 text-sm">
+                                                <SelectValue placeholder="Dept" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {departments.map(dept => (
+                                                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex gap-2 mt-1">
+                                        <Button size="sm" className="h-7 text-xs" onClick={handleSaveHeader}>Save</Button>
+                                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setIsEditingHeader(false)}>Cancel</Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="group cursor-pointer" onClick={() => setIsEditingHeader(true)}>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <h1 className="text-2xl md:text-3xl font-bold group-hover:text-primary transition-colors tracking-tight">
+                                            {visit.visit_number}
+                                        </h1>
+                                        <Edit className="h-4 w-4 opacity-0 group-hover:opacity-50" />
+                                        <div className="flex gap-2 md:hidden">
+                                            {visit.criticality === 'Critical' && (
+                                                <Badge variant="destructive" className="h-5 px-1.5 text-[10px] animate-pulse">Critical</Badge>
+                                            )}
+                                            <Badge variant={visit.status === 'completed' ? 'default' : 'secondary'} className="h-5 px-1.5 text-[10px]">
+                                                {visit.status}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm md:text-base text-muted-foreground line-clamp-1">
+                                        {visit.provider_name} • {visit.department}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end pl-10 md:pl-0">
+                        <div className="flex items-center gap-3 hidden md:flex">
+                            {visit.criticality === 'Critical' && (
+                                <Badge variant="destructive" className="animate-pulse">Critical</Badge>
+                            )}
+                            <Badge variant={visit.status === 'completed' ? 'default' : 'secondary'}>
+                                {visit.status}
+                            </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <div className={`text-lg font-bold ${getConfidenceColor(visit.confidence_score)}`}>
+                                {visit.confidence_score}%
+                            </div>
+
+                            {visit.is_ipd_admission ? (
+                                <Badge className="bg-purple-600 hover:bg-purple-700 h-8 md:h-9 px-3">
+                                    Admitted to IPD
+                                </Badge>
+                            ) : (
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="h-8 md:h-9 bg-purple-100 text-purple-700 hover:bg-purple-200"
+                                    onClick={async () => {
+                                        if (confirm("Confirm admission to IPD?")) {
+                                            try {
+                                                const res = await fetch(getApiUrl(`/api/visits/${id}`), {
+                                                    method: 'PATCH',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        is_ipd_admission: true,
+                                                        status: 'admitted_to_ipd'
+                                                    })
+                                                });
+                                                if (res.ok) {
+                                                    toast({ title: "Patient Admitted to IPD" });
+                                                    setVisit(prev => prev ? { ...prev, is_ipd_admission: true, status: 'admitted_to_ipd' } : null);
+                                                }
+                                            } catch (e) { toast({ title: "Error", variant: "destructive" }); }
+                                        }
+                                    }}
+                                >
+                                    Admit to IPD
+                                </Button>
+                            )}
+
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="h-8 md:h-9"
+                                onClick={async () => {
+                                    if (confirm("Are you sure? This cannot be undone.")) {
+                                        try {
+                                            const res = await fetch(getApiUrl(`/api/visits/${id}`), { method: 'DELETE' });
+                                            if (res.ok) { toast({ title: "Deleted" }); navigate("/"); }
+                                        } catch (e) { toast({ title: "Error", variant: "destructive" }); }
+                                    }
+                                }}
+                            >
+                                <Trash2 className="h-4 w-4 md:mr-2" />
+                                <span className="hidden md:inline">Delete Record</span>
+                                <span className="md:hidden">Delete</span>
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
@@ -466,7 +511,7 @@ export default function VisitDetail() {
                 )}
 
                 {/* Chief Complaint */}
-                <Card className="glass-card p-6 mb-6">
+                <Card className="glass-card p-4 md:p-6 mb-6">
                     <h2 className="text-xl font-semibold mb-3">Chief Complaint</h2>
                     <p className="text-lg">{visit.chief_complaint || "Not specified"}</p>
                     <div className="mt-4 text-sm text-muted-foreground">
@@ -475,7 +520,7 @@ export default function VisitDetail() {
                 </Card>
 
                 {/* Symptoms Panel */}
-                <Card className="glass-card p-6 mb-6">
+                <Card className="glass-card p-4 md:p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold">Symptoms</h2>
                         <Badge variant="outline">{symptoms.length} symptoms</Badge>
@@ -485,27 +530,28 @@ export default function VisitDetail() {
                         {symptoms.map((symptom) => (
                             <div
                                 key={symptom.id}
-                                className={`p-4 rounded-lg border ${symptom.confidence === 'low' ? 'bg-yellow-500/5 border-yellow-500/20' :
+                                className={`p-3 md:p-4 rounded-lg border ${symptom.confidence === 'low' ? 'bg-yellow-500/5 border-yellow-500/20' :
                                     symptom.confidence === 'high' ? 'bg-green-500/5 border-green-500/20' :
                                         'bg-muted/50'
                                     }`}
                             >
-                                <div className="flex items-start justify-between">
+                                <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1">
-                                        <p className="font-medium">{symptom.symptom_text}</p>
-                                        <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                                        <p className="font-medium text-sm md:text-base">{symptom.symptom_text}</p>
+                                        <div className="flex flex-wrap gap-2 md:gap-4 mt-2 text-xs md:text-sm text-muted-foreground">
                                             {symptom.severity && <span>Severity: {symptom.severity}</span>}
                                             {symptom.onset && <span>Onset: {symptom.onset}</span>}
                                             {symptom.duration && <span>Duration: {symptom.duration}</span>}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Badge variant="outline" className="text-xs">
+                                    <div className="flex flex-col md:flex-row items-end md:items-center gap-2">
+                                        <Badge variant="outline" className="text-[10px] md:text-xs h-5 md:h-6">
                                             {symptom.confidence_score}%
                                         </Badge>
                                         <Button
                                             variant="ghost"
-                                            size="sm"
+                                            size="icon"
+                                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
                                             onClick={() => deleteSymptom(symptom.id)}
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -523,16 +569,16 @@ export default function VisitDetail() {
                             value={newSymptom}
                             onChange={(e) => setNewSymptom(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && addSymptom()}
+                            className="flex-1"
                         />
-                        <Button onClick={addSymptom}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add
+                        <Button onClick={addSymptom} size="icon" className="shrink-0">
+                            <Plus className="h-5 w-5" />
                         </Button>
                     </div>
                 </Card>
 
                 {/* Medications Panel */}
-                <Card className="glass-card p-6 mb-6">
+                <Card className="glass-card p-4 md:p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold">Medications</h2>
                         <Badge variant="outline">{medications.length} records</Badge>
@@ -545,7 +591,7 @@ export default function VisitDetail() {
                             medications.map((med) => (
                                 <div key={med.id} className="p-3 rounded-lg border bg-muted/30 flex justify-between items-center">
                                     <div>
-                                        <p className="font-medium">{med.medication_name}</p>
+                                        <p className="font-medium text-sm md:text-base">{med.medication_name}</p>
                                         <p className="text-xs text-muted-foreground">
                                             Duration: {med.date_prescribed} days • Source: {med.source}
                                         </p>
@@ -556,8 +602,8 @@ export default function VisitDetail() {
                     </div>
 
                     {/* Add Medication */}
-                    <div className="flex gap-2 items-end">
-                        <div className="flex-1">
+                    <div className="flex flex-col md:flex-row gap-3 items-end">
+                        <div className="flex-1 w-full">
                             <label className="text-xs text-muted-foreground mb-1 block">Medication Name</label>
                             <Input
                                 placeholder="e.g. Metformin 500mg"
@@ -565,59 +611,62 @@ export default function VisitDetail() {
                                 onChange={(e) => setNewMedName(e.target.value)}
                             />
                         </div>
-                        <div className="w-1/3">
-                            <label className="text-xs text-muted-foreground mb-1 block">Duration (Days)</label>
-                            <div className="flex items-center">
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-10 w-10 rounded-r-none"
-                                    onClick={() => setNewMedDays(prev => Math.max(1, prev - 1))}
-                                >
-                                    -
-                                </Button>
-                                <div className="h-10 flex-1 flex items-center justify-center border-y border-input bg-background">
-                                    {newMedDays}
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <div className="w-1/2 md:w-32">
+                                <label className="text-xs text-muted-foreground mb-1 block">Days</label>
+                                <div className="flex items-center">
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-10 w-8 rounded-r-none"
+                                        onClick={() => setNewMedDays(prev => Math.max(1, prev - 1))}
+                                    >
+                                        -
+                                    </Button>
+                                    <div className="h-10 flex-1 flex items-center justify-center border-y border-input bg-background text-sm">
+                                        {newMedDays}
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-10 w-8 rounded-l-none"
+                                        onClick={() => setNewMedDays(prev => prev + 1)}
+                                    >
+                                        +
+                                    </Button>
                                 </div>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-10 w-10 rounded-l-none"
-                                    onClick={() => setNewMedDays(prev => prev + 1)}
-                                >
-                                    +
-                                </Button>
                             </div>
+                            <Button onClick={handleAddMedication} className="mb-0 mt-auto flex-1 md:flex-none">
+                                <Plus className="h-4 w-4 md:mr-2" />
+                                <span className="md:inline">Add</span>
+                            </Button>
                         </div>
-                        <Button onClick={handleAddMedication}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add
-                        </Button>
                     </div>
                 </Card>
 
                 {/* Differentials Panel */}
-                <Card className="glass-card p-6 mb-6">
+                <Card className="glass-card p-4 md:p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold">Differential Diagnoses</h2>
-                        <Button onClick={generateDifferentials} variant="outline">
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            {differentials.length > 0 ? 'Re-generate' : 'Generate DDX'}
+                        <Button onClick={generateDifferentials} variant="outline" size="sm">
+                            <RefreshCw className="h-4 w-4 md:mr-2" />
+                            <span className="hidden md:inline">{differentials.length > 0 ? 'Re-generate' : 'Generate DDX'}</span>
+                            <span className="md:hidden">Generate</span>
                         </Button>
                     </div>
 
                     {differentials.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             <p>No differentials generated yet</p>
-                            <p className="text-sm mt-2">Click "Generate DDX" to analyze symptoms</p>
+                            <p className="text-sm mt-2">Click "Generate" to analyze symptoms</p>
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {differentials.map((diff) => (
+                            {differentials.filter(diff => diff.condition_name && diff.condition_name.trim() !== "").map((diff) => (
                                 <div key={diff.id} className="p-4 rounded-lg border bg-muted/30">
                                     <div className="flex items-start justify-between mb-2">
                                         <div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
                                                 <Badge className="bg-primary">{diff.rank}</Badge>
                                                 <h3 className="font-semibold text-lg">{diff.condition_name}</h3>
                                                 {diff.icd10_code && (
@@ -671,7 +720,7 @@ export default function VisitDetail() {
                 </Card>
 
                 {/* Full Clinical Report (Extracted Text) */}
-                <Card className="glass-card p-6 mb-6">
+                <Card className="glass-card p-4 md:p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold">Full Clinical Report</h2>
                         <div className="flex items-center gap-2">
@@ -683,18 +732,19 @@ export default function VisitDetail() {
                                 onChange={handleFileUpload}
                             />
                             <Button variant="outline" size="sm" onClick={() => document.getElementById('report-upload')?.click()}>
-                                <Upload className="h-4 w-4 mr-2" />
-                                Upload Document
+                                <Upload className="h-4 w-4 md:mr-2" />
+                                <span className="hidden md:inline">Upload Document</span>
+                                <span className="md:hidden">Upload</span>
                             </Button>
                         </div>
                     </div>
-                    <div className="bg-muted/30 p-6 rounded-lg font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                    <div className="bg-muted/30 p-4 md:p-6 rounded-lg font-mono text-xs md:text-sm whitespace-pre-wrap leading-relaxed max-h-[300px] overflow-y-auto">
                         {visit.visit_notes || "No report text available."}
                     </div>
                 </Card>
 
                 {/* AI Clinical Analysis */}
-                <Card className="glass-card p-6 mb-6">
+                <Card className="glass-card p-4 md:p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold">AI Clinical Analysis</h2>
                         <Button onClick={generateAnalysis} disabled={analyzing}>

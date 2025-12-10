@@ -234,12 +234,15 @@ export const getStats = async () => {
             (v.visit_notes && v.visit_notes.toLowerCase().includes('follow up'))
         ).length;
 
+        const opdToIpdCount = visits.filter(v => v.is_ipd_admission === true).length;
+
         // Baseline Fake Data (to make dashboard look populated)
         const BASELINE = {
             todayTotal: 142,
             highRisk: 12,
             incompleteData: 5,
-            followUp: 45
+            followUp: 45,
+            opdToIpdCount: 8
         };
 
         return {
@@ -247,11 +250,12 @@ export const getStats = async () => {
             highRisk: highRisk + BASELINE.highRisk,
             incompleteData: incompleteData + BASELINE.incompleteData,
             followUp: followUp + BASELINE.followUp,
+            opdToIpdCount: opdToIpdCount + BASELINE.opdToIpdCount,
             storageStatus: 'dynamodb'
         };
     } catch (error) {
         console.error("Error getting stats:", error);
-        return { todayTotal: 0, highRisk: 0, incompleteData: 0, followUp: 0, storageStatus: 'error' };
+        return { todayTotal: 0, highRisk: 0, incompleteData: 0, followUp: 0, opdToIpdCount: 0, storageStatus: 'error' };
     }
 };
 
@@ -391,6 +395,28 @@ export const generateDifferentials = async (visitId) => {
             }
         } catch (e) { console.error("Parse error", e); }
 
+        // Clear existing differentials for this visit to avoid duplicates
+        try {
+            const existingddx = await docClient.send(new QueryCommand({
+                TableName: "Differentials",
+                IndexName: "VisitIndex",
+                KeyConditionExpression: "visit_id = :vid",
+                ExpressionAttributeValues: { ":vid": visitId }
+            }));
+
+            if (existingddx.Items && existingddx.Items.length > 0) {
+                // Delete in parallel (be mindful of throughput, but usually DDX are few < 10)
+                await Promise.all(existingddx.Items.map(item =>
+                    docClient.send(new DeleteCommand({
+                        TableName: "Differentials",
+                        Key: { id: item.id }
+                    }))
+                ));
+            }
+        } catch (err) {
+            console.error("Error clearing old differentials:", err);
+        }
+
         // Store in DynamoDB
         for (const [i, diff] of differentials.entries()) {
             const item = {
@@ -503,7 +529,25 @@ AI: { "message": "How long have you had the pain and vomiting?", "new_symptoms":
             if (cleanContent.startsWith('```')) {
                 cleanContent = cleanContent.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
             }
-            return JSON.parse(cleanContent);
+
+            try {
+                return JSON.parse(cleanContent);
+            } catch (e) {
+                // If direct parse fails, try to find the JSON object within the text
+                const firstCurly = cleanContent.indexOf('{');
+                const lastCurly = cleanContent.lastIndexOf('}');
+
+                if (firstCurly !== -1 && lastCurly !== -1 && lastCurly > firstCurly) {
+                    const possibleJson = cleanContent.substring(firstCurly, lastCurly + 1);
+                    try {
+                        return JSON.parse(possibleJson);
+                    } catch (innerE) {
+                        console.error("Failed to parse extracted JSON:", innerE);
+                    }
+                }
+
+                throw e; // Throw original error to trigger fallback
+            }
         } catch (e) {
             console.error("Failed to parse Chat JSON:", e);
             // Fallback if LLM fails to output JSON
@@ -690,6 +734,7 @@ export const getAuditLogs = async () => {
     }
 };
 
+
 export const createAuditLog = async (logData) => {
     const log = {
         id: uuidv4(),
@@ -704,6 +749,56 @@ export const createAuditLog = async (logData) => {
         return log;
     } catch (error) {
         console.error("Error creating audit log:", error);
+        return null;
+    }
+};
+
+export const createDocument = async (docData) => {
+    const doc = {
+        id: uuidv4(),
+        ...docData,
+        created_at: new Date().toISOString()
+    };
+    try {
+        await docClient.send(new PutCommand({
+            TableName: "Documents",
+            Item: doc
+        }));
+        return doc;
+    } catch (error) {
+        console.error("Error creating document in DynamoDB:", error);
+        throw error;
+    }
+};
+
+export const getDocument = async (docId) => {
+    try {
+        const response = await docClient.send(new GetCommand({
+            TableName: "Documents",
+            Key: { id: docId }
+        }));
+        if (!response.Item) throw new Error("Document not found");
+        return response.Item;
+    } catch (error) {
+        console.error("Error fetching document from DynamoDB:", error);
+        throw error;
+    }
+};
+
+export const createLLMTask = async (taskData) => {
+    const task = {
+        id: uuidv4(),
+        ...taskData,
+        created_at: new Date().toISOString()
+    };
+    try {
+        await docClient.send(new PutCommand({
+            TableName: "LLMTasks",
+            Item: task
+        }));
+        return task;
+    } catch (error) {
+        console.error("Error creating LLM task in DynamoDB:", error);
         return null;
     }
 };

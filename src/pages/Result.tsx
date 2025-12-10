@@ -4,8 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, FileText, Sparkles, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/config";
 
 export default function Result() {
   const { id } = useParams();
@@ -34,13 +34,9 @@ export default function Result() {
 
   const loadDocument = async () => {
     try {
-      const { data, error } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) throw error;
+      const response = await fetch(getApiUrl(`/api/documents/${id}`));
+      if (!response.ok) throw new Error("Failed to fetch document");
+      const data = await response.json();
       setDocument(data);
     } catch (error: any) {
       toast({
