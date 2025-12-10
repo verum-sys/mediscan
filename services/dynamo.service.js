@@ -44,7 +44,9 @@ export const createVisit = async (visitData) => {
         confidence_score: visitData.confidenceScore,
         criticality: visitData.criticality || 'Stable',
         criticality_reason: visitData.criticalityReason,
-        status: 'in_progress',
+        summary: visitData.summary,
+        status: 'follow_up',
+        needs_follow_up: true,
         created_at: new Date().toISOString()
     };
 
@@ -114,47 +116,190 @@ export const deleteVisit = async (visitId) => {
     }
 };
 
+const MOCK_QUEUE_DATA = [
+    {
+        id: 'mock-q-1',
+        visit_number: 'OPD-2024-892',
+        chief_complaint: 'Severe chest pain radiating to left arm',
+        facility_name: 'City General Hospital',
+        department: 'Cardiology',
+        provider_name: 'Dr. Sarah Johnson',
+        status: 'in_progress',
+        confidence_score: 92,
+        created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+        visit_notes: 'Patient presented with sudden onset cp...',
+        criticality: 'Critical',
+        criticality_reason: 'Potential ACS'
+    },
+    {
+        id: 'mock-q-2',
+        visit_number: 'OPD-2024-891',
+        chief_complaint: 'Persistent dry cough and fever',
+        facility_name: 'City General Hospital',
+        department: 'Pulmonology',
+        provider_name: 'Dr. Alan Smith',
+        status: 'completed',
+        confidence_score: 88,
+        created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+        visit_notes: 'Cough for 3 weeks...'
+    },
+    {
+        id: 'mock-q-3',
+        visit_number: 'OPD-2024-890',
+        chief_complaint: 'Migraine with aura',
+        facility_name: 'City General Hospital',
+        department: 'Neurology',
+        provider_name: 'Dr. Emily Davis',
+        status: 'waiting',
+        confidence_score: 75,
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
+    },
+    {
+        id: 'mock-q-4',
+        visit_number: 'OPD-2024-889',
+        chief_complaint: 'Abdominal pain, lower right quadrant',
+        facility_name: 'City General Hospital',
+        department: 'Emergency',
+        provider_name: 'Dr. M. Irfan',
+        status: 'in_progress',
+        confidence_score: 65,
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString()
+    },
+    {
+        id: 'mock-q-5',
+        visit_number: 'OPD-2024-888',
+        chief_complaint: 'Routine diabetic checkup',
+        facility_name: 'City General Hospital',
+        department: 'Endocrinology',
+        provider_name: 'Dr. R. Kapoor',
+        status: 'completed',
+        confidence_score: 95,
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString()
+    }
+];
+
 export const getVisit = async (visitId) => {
     try {
-        // Get Visit
-        const visitRes = await docClient.send(new GetCommand({
-            TableName: "Visits",
-            Key: { id: visitId }
-        }));
-        const visit = visitRes.Item;
+        let visit;
+        let symptoms = [];
+        let medications = [];
+        let differentials = [];
+        let patient_history = null; // MOVED HERE - must be declared before the try block
+
+        // 1. Try DynamoDB First
+        try {
+            const visitRes = await docClient.send(new GetCommand({
+                TableName: "Visits",
+                Key: { id: visitId }
+            }));
+            visit = visitRes.Item;
+
+            if (visit) {
+                // Get Symptoms
+                const symptomsRes = await docClient.send(new QueryCommand({
+                    TableName: "Symptoms",
+                    IndexName: "VisitIndex",
+                    KeyConditionExpression: "visit_id = :vid",
+                    ExpressionAttributeValues: { ":vid": visitId }
+                }));
+                symptoms = symptomsRes.Items || [];
+
+                // Get Medications
+                const medsRes = await docClient.send(new QueryCommand({
+                    TableName: "Medications",
+                    IndexName: "VisitIndex",
+                    KeyConditionExpression: "visit_id = :vid",
+                    ExpressionAttributeValues: { ":vid": visitId }
+                }));
+                medications = medsRes.Items || [];
+
+                // Get Differentials
+                const ddxRes = await docClient.send(new QueryCommand({
+                    TableName: "Differentials",
+                    IndexName: "VisitIndex",
+                    KeyConditionExpression: "visit_id = :vid",
+                    ExpressionAttributeValues: { ":vid": visitId }
+                }));
+                differentials = ddxRes.Items || [];
+
+                // Valid Real Visit + Summary Logic
+                let summaryText = visit.summary;
+                console.log("Visit summary field:", visit.summary);
+                console.log("Visit clinical_analysis:", visit.clinical_analysis);
+
+                // Fallback: If no summary field, try to extract from saved clinical analysis
+                if (!summaryText && visit.clinical_analysis && visit.clinical_analysis.patient_analysis) {
+                    const pa = visit.clinical_analysis.patient_analysis;
+                    summaryText = `Patient presents with ${pa.Chief_Complaint || "unspecified complaints"}. Reported symptoms: ${pa.Symptoms || "none"}.`;
+                    console.log("Generated summary from clinical_analysis:", summaryText);
+                }
+
+                if (summaryText) {
+                    patient_history = {
+                        summary: summaryText,
+                        journey: []
+                    };
+                    console.log("Setting patient_history:", patient_history);
+                }
+            }
+        } catch (dbError) {
+            console.warn(`DynamoDB fetch failed for ${visitId}, checking mock data...`);
+        }
+
+        const RICH_MOCK_HISTORY = {
+            summary: "Patient is a 54-year-old male with a known history of Type 2 Diabetes Mellitus (diagnosed 2018) and Hypertension. Reports occasional smoker status. No known drug allergies.",
+            journey: [
+                {
+                    date: "2024-10-12",
+                    title: "Follow-up Visit",
+                    dept: "Endocrinology",
+                    details: "HbA1c 7.5%. Metformin dosage adjusted.",
+                    reports: ["HbA1c_Report_Oct24.pdf"],
+                    prescriptions: ["Metformin 1000mg BD", "Glimepiride 1mg OD"],
+                    vitals: "BP: 130/85, Wt: 82kg"
+                },
+                {
+                    date: "2024-08-05",
+                    title: "Lab Results",
+                    dept: "Pathology",
+                    details: "Lipid Profile: Elevated LDL (145 mg/dL).",
+                    reports: ["Lipid_Profile_Aug24.pdf", "Liver_Function_Test.pdf"],
+                    vitals: "N/A"
+                },
+                {
+                    date: "2024-05-20",
+                    title: "OPD Consultation",
+                    dept: "General Medicine",
+                    details: "Complained of fatigue and dizziness. BP 150/90.",
+                    prescriptions: ["Amlodipine 5mg OD"],
+                    vitals: "BP: 150/90, Pulse: 88"
+                }
+            ]
+        };
+
+        // 2. Fallback to Mock Data
+        if (!visit) {
+            visit = MOCK_QUEUE_DATA.find(v => v.id === visitId);
+            if (visit) {
+                // Generate fake sub-data for the mock visit
+                symptoms = [
+                    { id: 'sym-1', symptom_text: 'Symptom matching complain', confidence_score: 90, severity: 'Moderate' }
+                ];
+                // Assign Rich Mock History ONLY to mock visits
+                patient_history = RICH_MOCK_HISTORY;
+            }
+        }
 
         if (!visit) throw new Error("Visit not found");
 
-        // Get Symptoms
-        const symptomsRes = await docClient.send(new QueryCommand({
-            TableName: "Symptoms",
-            IndexName: "VisitIndex",
-            KeyConditionExpression: "visit_id = :vid",
-            ExpressionAttributeValues: { ":vid": visitId }
-        }));
-
-        // Get Medications
-        const medsRes = await docClient.send(new QueryCommand({
-            TableName: "Medications",
-            IndexName: "VisitIndex",
-            KeyConditionExpression: "visit_id = :vid",
-            ExpressionAttributeValues: { ":vid": visitId }
-        }));
-
-        // Get Differentials
-        const ddxRes = await docClient.send(new QueryCommand({
-            TableName: "Differentials",
-            IndexName: "VisitIndex",
-            KeyConditionExpression: "visit_id = :vid",
-            ExpressionAttributeValues: { ":vid": visitId }
-        }));
-
         return {
             visit,
-            symptoms: symptomsRes.Items || [],
-            medications: medsRes.Items || [],
-            differentials: ddxRes.Items || [],
-            alerts: []
+            symptoms,
+            medications,
+            differentials,
+            alerts: [],
+            patient_history,
+            clinical_analysis: visit.clinical_analysis || null
         };
     } catch (error) {
         console.error("Error fetching visit:", error);
@@ -640,6 +785,84 @@ export const createTriageAssessment = async () => ({});
 export const getTriageQueue = async () => ([]);
 export const summarizeConversation = async () => ({});
 
+// --- Logistics Mock Generators ---
+
+const getDrugDetails = (drugName) => {
+    const db = {
+        'Amoxicillin': { salt: 'Amoxicillin + Clavulanic Acid', brands: ['Augmentin', 'Amoxil', 'Clavulin'] },
+        'Paracetamol': { salt: 'Paracetamol', brands: ['Tylenol', 'Panadol', 'Crocin'] },
+        'Ibuprofen': { salt: 'Ibuprofen', brands: ['Advil', 'Brufen', 'Nurofen'] },
+        'Metformin': { salt: 'Metformin Hydrochloride', brands: ['Glucophage', 'Glycomet', 'Riomet'] },
+        'Atorvastatin': { salt: 'Atorvastatin Calcium', brands: ['Lipitor', 'Atorva', 'Storvas'] },
+        'Omeprazole': { salt: 'Omeprazole', brands: ['Prilosec', 'Omez', 'Losec'] },
+        'Azithromycin': { salt: 'Azithromycin', brands: ['Zithromax', 'Azithral', 'Z-Pak'] },
+        'Pantoprazole': { salt: 'Pantoprazole Sodium', brands: ['Pantocid', 'Protonix', 'Pan40'] },
+        'Cetirizine': { salt: 'Cetirizine Hydrochloride', brands: ['Zyrtec', 'Cetzine', 'Reactine'] },
+        'Montelukast': { salt: 'Montelukast Sodium', brands: ['Singulair', 'Montek', 'Telekast'] }
+    };
+
+    const cleanName = drugName ? drugName.split(' ')[0] : 'Unknown';
+    const found = Object.entries(db).find(([k, v]) => drugName && drugName.toLowerCase().includes(k.toLowerCase()));
+
+    if (found) return found[1];
+
+    return {
+        salt: `${cleanName} Active Ingredient`,
+        brands: [`${cleanName}-BrandA`, `${cleanName}-BrandB`]
+    };
+};
+
+const generateMedicationLogistics = (drugName) => {
+    const details = getDrugDetails(drugName);
+    const rand = Math.random();
+    let status = 'Available';
+    if (rand > 0.7) status = 'Low Stock';
+    if (rand > 0.9) status = 'Out of Stock';
+
+    let quantity = 0;
+    if (status === 'Available') quantity = Math.floor(Math.random() * 50) + 20;
+    if (status === 'Low Stock') quantity = Math.floor(Math.random() * 9) + 1;
+
+    const logistics = {
+        salt_composition: details.salt,
+        stock_status: status,
+        current_stock: `${quantity} boxes`,
+        alternatives: []
+    };
+
+    if (status !== 'Available') {
+        logistics.alternatives = details.brands.slice(0, 2).map(brand => ({
+            brand_name: brand,
+            stock: `${Math.floor(Math.random() * 50) + 30} boxes`
+        }));
+    }
+
+    return logistics;
+};
+
+const generateLabLogistics = (testName) => {
+    const queueSize = Math.floor(Math.random() * 12);
+    let queueStatus = 'Walk-in Available';
+    if (queueSize > 4) queueStatus = 'Busy';
+    if (queueSize > 9) queueStatus = 'High Wait Time';
+
+    const now = new Date();
+    // Ensure future slot
+    let minutesToAdd = (queueSize * 15) + 20;
+    let nextSlotTime = new Date(now.getTime() + minutesToAdd * 60000);
+
+    // Format friendly timestamp
+    const timeString = nextSlotTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const dateString = nextSlotTime.getDate() === now.getDate() ? "Today" : "Tomorrow";
+
+    const logistics = {
+        live_queue: queueSize === 0 ? "Empty" : `${queueSize} people in queue`,
+        next_available_slot: `${dateString}, ${timeString}`,
+        status: queueStatus
+    };
+    return logistics;
+};
+
 export const generateClinicalAnalysis = async (visitId) => {
     let visitData;
     try {
@@ -673,9 +896,11 @@ export const generateClinicalAnalysis = async (visitId) => {
                         role: 'system',
                         content: `You are a clinical decision support AI. Analyze the patient data and return a JSON response with:
                         1. patient_analysis: { Age, Sex, Chief_Complaint, Symptoms, Treatment_Plan, Effectiveness_Prediction, Notes }
-                        2. investigative_suggestions: [{ Test_Name, Type (Essential/Optional), Ruled_Out_Test, Confidence_Score }]
+                        2. medications: [{ Name, Type, Dosage, Duration, Frequency }]
+                        3. investigative_suggestions: [{ Test_Name, Type (Essential/Optional), Ruled_Out_Test, Confidence_Score }]
                         
                         Infer missing details like Age/Sex from context if possible, or mark as "Unknown".
+                        For 'medications', extract drugs mentioned in the treatment plan.
                         Return ONLY valid JSON.`
                     },
                     {
@@ -695,12 +920,53 @@ export const generateClinicalAnalysis = async (visitId) => {
         const content = result.choices[0]?.message?.content;
         const parsed = JSON.parse(content);
 
-        // Normalize confidence scores to 0-100
+        // Enrich with Logistics Mock Data
         if (parsed.investigative_suggestions) {
             parsed.investigative_suggestions = parsed.investigative_suggestions.map(item => ({
                 ...item,
-                Confidence_Score: item.Confidence_Score <= 1 ? Math.round(item.Confidence_Score * 100) : item.Confidence_Score
+                Confidence_Score: item.Confidence_Score <= 1 ? Math.round(item.Confidence_Score * 100) : item.Confidence_Score,
+                logistics: generateLabLogistics(item.Test_Name)
             }));
+        }
+
+        if (parsed.medications) {
+            parsed.medications = parsed.medications.map(item => ({
+                ...item,
+                logistics: generateMedicationLogistics(item.Name)
+            }));
+        } else {
+            // Fallback
+            parsed.medications = [];
+        }
+
+        // Helper to remove empty strings/undefined for DynamoDB
+        const cleanForDynamo = (obj) => {
+            if (Array.isArray(obj)) return obj.map(cleanForDynamo);
+            if (typeof obj === 'object' && obj !== null) {
+                return Object.entries(obj).reduce((acc, [k, v]) => {
+                    if (v === "" || v === undefined) return acc; // Skip empty/undefined
+                    acc[k] = cleanForDynamo(v);
+                    return acc;
+                }, {});
+            }
+            return obj;
+        };
+
+        // Generate a concise summary for the Patient History section
+        const generatedSummary = `Patient presents with ${parsed.patient_analysis.Chief_Complaint || "unspecified complaints"}. Reported symptoms: ${parsed.patient_analysis.Symptoms || "none"}. Plan: ${parsed.patient_analysis.Treatment_Plan || "Consultation"}.`;
+
+        const safeAnalysis = cleanForDynamo(parsed);
+        console.log(`Saving clinical analysis and summary for ${visitId}...`);
+
+        // Save Analysis AND Summary to DynamoDB for persistence
+        try {
+            await updateVisit(visitId, {
+                clinical_analysis: safeAnalysis,
+                summary: generatedSummary
+            });
+            console.log("Successfully saved clinical analysis.");
+        } catch (saveError) {
+            console.error("Failed to save clinical analysis:", saveError);
         }
 
         return parsed;
@@ -718,6 +984,7 @@ export const generateClinicalAnalysis = async (visitId) => {
                 Effectiveness_Prediction: "Moderate",
                 Notes: "Automated analysis failed. Please review manually."
             },
+            medications: [],
             investigative_suggestions: []
         };
     }

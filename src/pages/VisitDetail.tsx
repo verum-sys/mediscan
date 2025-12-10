@@ -16,12 +16,40 @@ import {
     ExternalLink,
     CheckCircle2,
     AlertTriangle,
+    Upload,
+    Package,
+    Users,
+    Activity,
+    Bandage,
+    History,
+    Calendar,
+    ChevronDown,
+    ChevronUp,
+    FileText,
     Clock,
     Mic,
-    FileText,
-    Upload
+    Bed
 } from "lucide-react";
+
+
 import { getApiUrl } from "@/config";
+
+interface PatientHistory {
+    summary: string;
+    journey: Array<{
+        date: string;
+        title: string;
+        dept: string;
+        details: string;
+        reports?: string[];
+        prescriptions?: string[];
+        vitals?: string;
+    }>;
+}
+
+// ... existing code ...
+
+
 
 interface Visit {
     id: string;
@@ -100,6 +128,8 @@ export default function VisitDetail() {
     const [editedVisitNumber, setEditedVisitNumber] = useState("");
     const [editedDepartment, setEditedDepartment] = useState("");
     const [editedProviderName, setEditedProviderName] = useState("");
+    const [patientHistory, setPatientHistory] = useState<PatientHistory | null>(null);
+    const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
     const departments = [
         "General Medicine",
@@ -123,6 +153,7 @@ export default function VisitDetail() {
                 const data = await response.json();
                 setClinicalAnalysis(data);
                 toast({ title: "Analysis generated successfully" });
+                loadVisit(); // Reload to fetch the newly generated summary
             }
         } catch (error) {
             toast({
@@ -151,6 +182,11 @@ export default function VisitDetail() {
                 setMedications(data.medications || []);
                 setDifferentials(data.differentials);
                 setAlerts(data.alerts);
+                console.log("Patient history received:", data.patient_history);
+                setPatientHistory(data.patient_history || null);
+                if (data.clinical_analysis) {
+                    setClinicalAnalysis(data.clinical_analysis);
+                }
 
                 // Initialize edit state
                 setEditedVisitNumber(data.visit.visit_number);
@@ -510,6 +546,8 @@ export default function VisitDetail() {
                     </Card>
                 )}
 
+
+
                 {/* Chief Complaint */}
                 <Card className="glass-card p-4 md:p-6 mb-6">
                     <h2 className="text-xl font-semibold mb-3">Chief Complaint</h2>
@@ -518,6 +556,100 @@ export default function VisitDetail() {
                         Provider: {visit.provider_name || "N/A"} • {new Date(visit.created_at).toLocaleString()}
                     </div>
                 </Card>
+
+                {/* Patient Summary & Previous Visits (Returns for recurring, Summary for new) */}
+                {patientHistory && (patientHistory.summary || (patientHistory.journey && patientHistory.journey.length > 0)) && (
+                    <Card className="glass-card p-4 md:p-6 mb-6">
+                        <div
+                            className="flex items-center justify-between cursor-pointer"
+                            onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+                        >
+                            <div className="flex items-center gap-2">
+                                <History className="h-5 w-5 text-primary" />
+                                <h2 className="text-xl font-semibold">Patient Summary & Previous Visits</h2>
+                            </div>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                {isHistoryExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </Button>
+                        </div>
+
+                        {isHistoryExpanded && (
+                            <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="bg-muted/30 p-4 rounded-lg mb-4 text-sm leading-relaxed border-l-4 border-primary">
+                                    <span className="font-semibold text-primary mr-2">Clinical Summary:</span>
+                                    {patientHistory.summary || "No summary available."}
+                                </div>
+
+                                {patientHistory.journey && patientHistory.journey.length > 0 ? (
+                                    <>
+                                        <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Previous Visits Timeline</h3>
+                                        <div className="space-y-6 relative pl-4 border-l-2 border-muted/50 ml-2">
+                                            {patientHistory.journey.map((event, idx) => (
+                                                <div key={idx} className="relative">
+                                                    <div className="absolute -left-[21px] top-1.5 h-3 w-3 rounded-full bg-muted-foreground/30 border-2 border-background ring-offset-background"></div>
+                                                    <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4">
+                                                        <div className="w-24 shrink-0 text-xs font-medium text-muted-foreground flex items-center gap-1">
+                                                            <Calendar className="h-3 w-3" />
+                                                            {event.date}
+                                                        </div>
+                                                        <div className="flex-1 pb-2">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="font-semibold text-sm">{event.title}</span>
+                                                                <Badge variant="outline" className="text-[10px] h-4 px-1">{event.dept}</Badge>
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground mb-2">{event.details}</p>
+
+                                                            {/* Rich Context Added: Reports, Rx, Vitals */}
+                                                            <div className="flex flex-wrap gap-4 mt-2">
+                                                                {event.vitals && event.vitals !== "N/A" && (
+                                                                    <div className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100">
+                                                                        <Activity className="h-3 w-3" />
+                                                                        <span className="font-medium">{event.vitals}</span>
+                                                                    </div>
+                                                                )}
+
+                                                                {event.reports && event.reports.length > 0 && (
+                                                                    <div className="flex flex-col gap-1">
+                                                                        {event.reports.map((report, rIdx) => (
+                                                                            <div key={rIdx} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary cursor-pointer transition-colors">
+                                                                                <FileText className="h-3 w-3" />
+                                                                                <span className="underline decoration-dotted">{report}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+
+                                                                {event.prescriptions && event.prescriptions.length > 0 && (
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                                                                            <Bandage className="h-3 w-3" />
+                                                                            <span>Prescribed:</span>
+                                                                        </div>
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {event.prescriptions.map((rx, rxIdx) => (
+                                                                                <Badge key={rxIdx} variant="secondary" className="text-[10px] h-4 px-1 bg-emerald-50 text-emerald-700 border-emerald-100">
+                                                                                    {rx}
+                                                                                </Badge>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="text-sm text-muted-foreground italic pl-2 border-l-2 border-muted/30">
+                                        No previous visit history available.
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </Card>
+                )}
 
                 {/* Symptoms Panel */}
                 <Card className="glass-card p-4 md:p-6 mb-6">
@@ -756,7 +888,7 @@ export default function VisitDetail() {
                             ) : (
                                 <>
                                     <FileText className="h-4 w-4 mr-2" />
-                                    Generate Analysis
+                                    {clinicalAnalysis ? "Regenerate Analysis" : "Generate Analysis"}
                                 </>
                             )}
                         </Button>
@@ -802,17 +934,86 @@ export default function VisitDetail() {
                                 </p>
                             </div>
 
+                            {/* Medication Recommendations */}
+                            {clinicalAnalysis.medications && clinicalAnalysis.medications.length > 0 && (
+                                <div>
+                                    <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                                        <Bandage className="w-5 h-5 text-primary" />
+                                        Medication Plan & Inventory
+                                    </h3>
+                                    <div className="overflow-x-auto rounded-lg border shadow-sm">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
+                                                <tr>
+                                                    <th className="px-4 py-3">Drug & Dosage</th>
+                                                    <th className="px-4 py-3">Active Salt</th>
+                                                    <th className="px-4 py-3">Stock Status</th>
+                                                    <th className="px-4 py-3">Substitutes</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {clinicalAnalysis.medications.map((item: any, idx: number) => (
+                                                    <tr key={idx} className="bg-background hover:bg-muted/50 transition-colors">
+                                                        <td className="px-4 py-3">
+                                                            <div className="font-medium text-purple-600">{item.Name}</div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {item.Dosage} • {item.Frequency} • {item.Duration}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-xs font-mono text-muted-foreground">
+                                                            {item.logistics?.salt_composition || "Unknown"}
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            {item.logistics && (
+                                                                <div className="flex flex-col gap-1">
+                                                                    <Badge variant={item.logistics.stock_status === 'Available' ? 'outline' : 'destructive'}
+                                                                        className={item.logistics.stock_status === 'Available' ? 'text-green-600 border-green-200 bg-green-50 w-fit' : 'w-fit'}>
+                                                                        {item.logistics.stock_status}
+                                                                    </Badge>
+                                                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                                        <Package className="w-3 h-3" />
+                                                                        {item.logistics.current_stock}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            {item.logistics?.alternatives?.length > 0 ? (
+                                                                <div className="space-y-1">
+                                                                    {item.logistics.alternatives.map((alt: any, i: number) => (
+                                                                        <div key={i} className="flex justify-between items-center text-xs bg-muted/50 p-1.5 rounded border">
+                                                                            <span className="font-medium">{alt.brand_name}</span>
+                                                                            <span className="text-green-600 font-bold">{alt.stock}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-xs text-muted-foreground">-</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Investigative Suggestions Table */}
                             <div>
-                                <h3 className="text-lg font-medium mb-3">Investigative Suggestions</h3>
-                                <div className="overflow-x-auto rounded-lg border">
+                                <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-primary" />
+                                    Investigative Suggestions & Lab Logistics
+                                </h3>
+                                <div className="overflow-x-auto rounded-lg border shadow-sm">
                                     <table className="w-full text-sm text-left">
                                         <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
                                             <tr>
                                                 <th className="px-4 py-3">Test Name</th>
                                                 <th className="px-4 py-3">Type</th>
-                                                <th className="px-4 py-3">Ruled Out</th>
                                                 <th className="px-4 py-3">Confidence</th>
+                                                <th className="px-4 py-3">Lab Queue</th>
+                                                <th className="px-4 py-3">Next Slot</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y">
@@ -824,10 +1025,9 @@ export default function VisitDetail() {
                                                             {item.Type}
                                                         </Badge>
                                                     </td>
-                                                    <td className="px-4 py-3 text-muted-foreground">{item.Ruled_Out_Test || '-'}</td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                                                            <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
                                                                 <div
                                                                     className="h-full bg-primary"
                                                                     style={{ width: `${item.Confidence_Score}%` }}
@@ -835,6 +1035,24 @@ export default function VisitDetail() {
                                                             </div>
                                                             <span className="text-xs">{item.Confidence_Score}%</span>
                                                         </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {item.logistics && (
+                                                            <div className="flex items-center gap-2">
+                                                                <Users className="w-4 h-4 text-muted-foreground" />
+                                                                <span className={`text-xs font-medium ${item.logistics.status === 'High Wait Time' ? 'text-orange-500' : 'text-green-600'}`}>
+                                                                    {item.logistics.live_queue}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {item.logistics && (
+                                                            <Badge variant="outline" className="font-mono font-normal">
+                                                                <Clock className="w-3 h-3 mr-1" />
+                                                                {item.logistics.next_available_slot}
+                                                            </Badge>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -845,6 +1063,33 @@ export default function VisitDetail() {
                         </div>
                     )}
                 </Card>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col md:flex-row gap-4 mb-20 justify-end">
+                    <Button
+                        variant="outline"
+                        size="lg"
+                        className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:text-green-800"
+                        onClick={() => {
+                            toast({ title: "Treatment Ended", description: "Visit marked as completed." });
+                            // Logic to update status would go here
+                        }}
+                    >
+                        <CheckCircle2 className="mr-2 h-5 w-5" />
+                        Treatment Ended
+                    </Button>
+
+                    <Button
+                        size="lg"
+                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
+                        onClick={() => {
+                            toast({ title: "Admission Request Sent", description: "Patient added to IPD queue." });
+                        }}
+                    >
+                        <Bed className="mr-2 h-5 w-5" />
+                        Admit to IPD
+                    </Button>
+                </div>
             </div>
         </div>
     );
