@@ -12,7 +12,8 @@ import {
   Activity,
   TrendingUp,
   RefreshCw,
-  Bell
+  Bell,
+  Mic
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/config";

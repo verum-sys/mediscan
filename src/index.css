@@ -148,4 +148,19 @@ All colors MUST be HSL.
   .animate-hover-lift:hover {
     @apply -translate-y-1 shadow-medium;
   }
+  
+  /* AI Voice Mode Gradient Animation */
+  @keyframes gradient-x {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+  
+  .animate-gradient-x {
+    background-size: 200% 200%;
+    animation: gradient-x 3s ease infinite;
+  }
 }

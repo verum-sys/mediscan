@@ -18,11 +18,13 @@ import {
     Search,
     ArrowLeft,
     MessageSquare,
-    Bot
+    Bot,
+    Mic
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getApiUrl } from "@/config";
+import VoiceInput from "@/components/VoiceInput";
 
 interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
@@ -343,15 +345,27 @@ export default function DDXTool() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-8">
             <div className="container mx-auto px-6 max-w-6xl">
-                <div className="flex flex-col gap-2 mb-6">
-                    <Button variant="ghost" className="w-fit -ml-2 text-muted-foreground" onClick={() => navigate("/")}>
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back to Dashboard
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Differential Diagnosis</h1>
-                        <p className="text-muted-foreground text-sm md:text-base">Enter symptoms to generate clinical insights</p>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                    <div className="flex flex-col gap-2">
+                        <Button variant="ghost" className="w-fit -ml-2 text-muted-foreground" onClick={() => navigate("/")}>
+                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            Back to Dashboard
+                        </Button>
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Differential Diagnosis</h1>
+                            <p className="text-muted-foreground text-sm md:text-base">Enter symptoms to generate clinical insights</p>
+                        </div>
                     </div>
+
+                    <Button
+                        onClick={() => navigate("/voice")}
+                        className="relative bg-gradient-to-r from-blue-500 via-teal-500 to-emerald-500 hover:from-blue-600 hover:via-teal-600 hover:to-emerald-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 animate-gradient-x overflow-hidden group"
+                        size="lg"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-teal-400 to-emerald-400 opacity-0 group-hover:opacity-30 blur-xl transition-opacity duration-300" />
+                        <Mic className="h-5 w-5 mr-2 relative z-10" />
+                        <span className="relative z-10">Voice Mode</span>
+                    </Button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -381,12 +395,18 @@ export default function DDXTool() {
                                     <div className="relative flex-1">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            placeholder="Add patient symptom..."
-                                            className="pl-9"
+                                            placeholder="Add patient symptom or use voice..."
+                                            className="pl-9 pr-12"
                                             value={newSymptom}
                                             onChange={(e) => setNewSymptom(e.target.value)}
                                             onKeyDown={(e) => e.key === 'Enter' && addSymptom()}
                                         />
+                                        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                            <VoiceInput
+                                                onTranscript={(text) => setNewSymptom(text)}
+                                                autoSubmit={false}
+                                            />
+                                        </div>
                                     </div>
                                     <Button onClick={addSymptom} size="icon" className="shrink-0 bg-primary">
                                         <Plus className="h-5 w-5" />
@@ -530,14 +550,22 @@ export default function DDXTool() {
                                     {/* Chat Input */}
                                     <div className="p-4 border-t">
                                         <div className="flex gap-2">
-                                            <Input
-                                                placeholder="Type patient details..."
-                                                value={chatInput}
-                                                onChange={(e) => setChatInput(e.target.value)}
-                                                onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()}
-                                                disabled={chatLoading}
-                                                className="text-base" // Prevent zoom on mobile
-                                            />
+                                            <div className="relative flex-1">
+                                                <Input
+                                                    placeholder="Type or speak patient details..."
+                                                    value={chatInput}
+                                                    onChange={(e) => setChatInput(e.target.value)}
+                                                    onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()}
+                                                    disabled={chatLoading}
+                                                    className="text-base pr-12" // Prevent zoom on mobile
+                                                />
+                                                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                                    <VoiceInput
+                                                        onTranscript={(text) => setChatInput(text)}
+                                                        autoSubmit={false}
+                                                    />
+                                                </div>
+                                            </div>
                                             <Button onClick={handleChatSubmit} disabled={chatLoading || !chatInput.trim()}>
                                                 <Send className="h-4 w-4" />
                                             </Button>

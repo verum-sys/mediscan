@@ -19,6 +19,7 @@ import Search from "./pages/Search";
 import DDXTool from "./pages/DDXTool";
 import Triage from "./pages/Triage";
 import QueueList from "./pages/QueueList";
+import VoiceMode from "./pages/VoiceMode";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/upload" element={<Upload />} />
               <Route path="/camera" element={<CameraOCR />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/voice" element={<VoiceMode />} />
 
               <Route path="/visit/:id" element={<VisitDetail />} />
               <Route path="/ddx" element={<DDXTool />} />
