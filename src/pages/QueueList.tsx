@@ -74,6 +74,14 @@ export default function QueueList() {
             bgColor: "bg-yellow-500/10",
             borderColor: "border-yellow-500/20"
         },
+        followup: {
+            title: "Follow-Up Cases",
+            description: "Patients requiring ongoing treatment and monitoring",
+            icon: Activity,
+            color: "text-orange-500",
+            bgColor: "bg-orange-500/10",
+            borderColor: "border-orange-500/20"
+        },
         ipd: {
             title: "IPD Admissions",
             description: "Patients admitted for In-Patient care",
@@ -174,6 +182,7 @@ export default function QueueList() {
                 if (category === 'moderate') return item.needs_follow_up && !item.has_high_risk;
                 if (category === 'stable') return !item.has_high_risk && !item.needs_follow_up && !item.has_incomplete_data;
                 if (category === 'incomplete') return item.has_incomplete_data;
+                if (category === 'followup') return item.needs_follow_up;
                 if (category === 'ipd') return item.is_ipd_admission;
                 return true;
             });
@@ -205,7 +214,11 @@ export default function QueueList() {
                             <ArrowLeft className="h-4 w-4 mr-2" />
                             Back
                         </Button>
-                        <Button className="md:hidden" size="sm" onClick={() => navigate("/upload")}>
+                        <Button
+                            className="md:hidden"
+                            size="sm"
+                            onClick={() => navigate(category === 'ipd' || category === 'followup' ? '/ddx' : '/upload')}
+                        >
                             <Plus className="h-4 w-4 mr-1" />
                             New
                         </Button>
@@ -224,7 +237,7 @@ export default function QueueList() {
                     </div>
 
                     <div className="hidden md:block">
-                        <Button onClick={() => navigate("/upload")}>
+                        <Button onClick={() => navigate(category === 'ipd' || category === 'followup' ? '/ddx' : '/upload')}>
                             <Plus className="h-4 w-4 mr-2" />
                             New Case
                         </Button>

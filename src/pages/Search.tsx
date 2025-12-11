@@ -23,11 +23,13 @@ export default function Search() {
             if (response.ok) {
                 const allVisits = await response.json();
 
-                // Simple search through chief complaints and visit numbers
+                // Search through chief complaints, visit numbers, facility names, and doctor names
                 const filtered = allVisits.filter((visit: any) =>
                     visit.chief_complaint?.toLowerCase().includes(query.toLowerCase()) ||
                     visit.visit_number?.toLowerCase().includes(query.toLowerCase()) ||
-                    visit.facility_name?.toLowerCase().includes(query.toLowerCase())
+                    visit.facility_name?.toLowerCase().includes(query.toLowerCase()) ||
+                    visit.provider_name?.toLowerCase().includes(query.toLowerCase()) ||
+                    visit.department?.toLowerCase().includes(query.toLowerCase())
                 );
 
                 setResults(filtered);
@@ -56,7 +58,7 @@ export default function Search() {
                 <Card className="glass-card p-6 mb-6">
                     <div className="flex gap-3">
                         <Input
-                            placeholder="Search by visit number, chief complaint, or facility..."
+                            placeholder="Search by visit number, symptoms, facility, doctor name, or department..."
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -90,9 +92,20 @@ export default function Search() {
                                             <p className="text-sm text-muted-foreground">
                                                 {visit.chief_complaint}
                                             </p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {visit.facility_name} • {visit.department}
-                                            </p>
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                                <span>{visit.facility_name}</span>
+                                                <span>•</span>
+                                                <span>{visit.department}</span>
+                                                {visit.provider_name && (
+                                                    <>
+                                                        <span>•</span>
+                                                        <span className="flex items-center gap-1">
+                                                            <User className="h-3 w-3" />
+                                                            {visit.provider_name}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </Card>

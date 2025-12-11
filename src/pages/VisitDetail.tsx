@@ -65,6 +65,7 @@ interface Visit {
     criticality?: 'Critical' | 'Stable';
     criticality_reason?: string;
     is_ipd_admission?: boolean;
+    needs_follow_up?: boolean;
 }
 
 interface Symptom {
@@ -1070,9 +1071,38 @@ export default function VisitDetail() {
                         variant="outline"
                         size="lg"
                         className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:text-green-800"
-                        onClick={() => {
-                            toast({ title: "Treatment Ended", description: "Visit marked as completed." });
-                            // Logic to update status would go here
+                        onClick={async () => {
+                            if (confirm("Mark treatment as ended? Patient will be removed from follow-up queue.")) {
+                                try {
+                                    const res = await fetch(getApiUrl(`/api/visits/${id}`), {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            status: 'completed',
+                                            needs_follow_up: false
+                                        })
+                                    });
+                                    if (res.ok) {
+                                        toast({
+                                            title: "Treatment Ended",
+                                            description: "Patient removed from follow-up queue."
+                                        });
+                                        setVisit(prev => prev ? {
+                                            ...prev,
+                                            status: 'completed',
+                                            needs_follow_up: false
+                                        } : null);
+                                    } else {
+                                        throw new Error('Failed to update');
+                                    }
+                                } catch (e) {
+                                    toast({
+                                        title: "Error",
+                                        description: "Failed to end treatment",
+                                        variant: "destructive"
+                                    });
+                                }
+                            }
                         }}
                     >
                         <CheckCircle2 className="mr-2 h-5 w-5" />

@@ -171,7 +171,10 @@ export default function Logs() {
             </div>
           </Card>
 
-          <Card className="glass-card p-6 border-purple-500/20">
+          <Card
+            className="glass-card p-6 border-purple-500/20 cursor-pointer hover:bg-purple-500/5 transition-colors"
+            onClick={() => navigate('/queue/followup')}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Follow-up</p>
@@ -182,7 +185,7 @@ export default function Logs() {
               </div>
             </div>
             <div className="mt-4 flex items-center text-sm text-purple-500">
-              <span>Pending</span>
+              <span>View List →</span>
             </div>
           </Card>
 
