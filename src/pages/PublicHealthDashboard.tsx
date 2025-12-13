@@ -31,18 +31,23 @@ import {
 interface SurveillanceData {
     topSymptoms: { name: string; count: number }[];
     dailyTrends: { date: string; count: number }[];
-    facilityCounts: { name: string; count: number }[];
+    areaCounts: { name: string; count: number }[];
     totalVisits: number;
     criticalCases: number;
 }
 
 interface Outbreak {
+    pincode?: string;
+    area?: string;
     symptom: string;
-    recentCount: number;
-    baselineAverage: number;
+    cases: number;
+    baseline: number;
     increase: number;
     severity: 'low' | 'medium' | 'high';
+    severityScore?: number;
+    trend?: string;
     detected_at: string;
+    recommendedAction?: string;
 }
 
 export default function PublicHealthDashboard() {
@@ -50,13 +55,15 @@ export default function PublicHealthDashboard() {
     const [data, setData] = useState<SurveillanceData | null>(null);
     const [outbreaks, setOutbreaks] = useState<Outbreak[]>([]);
     const [loading, setLoading] = useState(true);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
     const loadData = async () => {
         setLoading(true);
         try {
+            // Use enhanced endpoints with pincode-based clustering
             const [dataRes, outbreaksRes] = await Promise.all([
-                fetch(getApiUrl('/api/surveillance/data')),
-                fetch(getApiUrl('/api/surveillance/outbreaks'))
+                fetch(getApiUrl('/api/surveillance/enhanced-data')),
+                fetch(getApiUrl('/api/surveillance/outbreaks-by-area'))
             ]);
 
             if (dataRes.ok) {
@@ -72,11 +79,19 @@ export default function PublicHealthDashboard() {
             console.error('Failed to load surveillance data:', error);
         } finally {
             setLoading(false);
+            setLastUpdated(new Date());
         }
     };
 
     useEffect(() => {
         loadData();
+
+        // Real-time auto-refresh every 30 seconds
+        const refreshInterval = setInterval(() => {
+            loadData();
+        }, 30000);
+
+        return () => clearInterval(refreshInterval);
     }, []);
 
     const getSeverityColor = (severity: string) => {
@@ -124,7 +139,14 @@ export default function PublicHealthDashboard() {
                         </Button>
                         <div>
                             <h1 className="text-3xl font-bold">Public Health Surveillance</h1>
-                            <p className="text-muted-foreground">Real-time disease trends and outbreak detection</p>
+                            <div className="flex items-center gap-2">
+                                <p className="text-muted-foreground">Real-time disease trends and outbreak detection</p>
+                                {lastUpdated && (
+                                    <Badge variant="outline" className="text-xs font-normal ml-2">
+                                        Updated: {lastUpdated.toLocaleTimeString()}
+                                    </Badge>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <Button onClick={loadData} disabled={loading}>
@@ -174,34 +196,60 @@ export default function PublicHealthDashboard() {
                             <h3 className="text-lg font-semibold">Outbreak Detection Alerts</h3>
                         </div>
                         <div className="space-y-3">
-                            {outbreaks.map((outbreak, idx) => (
-                                <div
-                                    key={idx}
-                                    className={`border rounded-lg p-4 ${getSeverityColor(outbreak.severity)}`}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h4 className="font-semibold">{outbreak.symptom}</h4>
-                                                <Badge variant={outbreak.severity === 'high' ? 'destructive' : 'default'}>
-                                                    {outbreak.severity.toUpperCase()} SEVERITY
-                                                </Badge>
+                            {outbreaks.map((outbreak, idx) => {
+                                // Double check filtering on frontend
+                                const isUnknown = (outbreak.area && outbreak.area.toUpperCase().includes('UNKNOWN')) ||
+                                    (outbreak.pincode && outbreak.pincode.toUpperCase().includes('UNKNOWN'));
+
+                                if (isUnknown) return null;
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className={`border rounded-lg p-4 ${getSeverityColor(outbreak.severity)}`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <h4 className="font-semibold">{outbreak.symptom}</h4>
+                                                    <Badge variant={outbreak.severity === 'high' ? 'destructive' : 'default'}>
+                                                        {outbreak.severity.toUpperCase()} SEVERITY
+                                                    </Badge>
+                                                    {outbreak.severityScore && (
+                                                        <Badge variant="outline" className="text-xs">
+                                                            Score: {outbreak.severityScore}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                {outbreak.area && (
+                                                    <p className="text-sm mb-1">
+                                                        <MapPin className="h-3 w-3 inline mr-1" />
+                                                        <span className="font-medium">{outbreak.area}</span>
+                                                        {outbreak.pincode && <span className="text-muted-foreground"> (Pin: {outbreak.pincode})</span>}
+                                                    </p>
+                                                )}
+                                                <p className="text-sm">
+                                                    <span className="font-medium">{outbreak.cases} cases</span> in last 24 hours
+                                                    (baseline: {outbreak.baseline}/day)
+                                                </p>
+                                                <p className="text-sm">
+                                                    <TrendingUp className="h-4 w-4 inline mr-1" />
+                                                    <span className="font-semibold">{outbreak.increase}% increase</span> above normal
+                                                    {outbreak.trend && <span className="ml-2 text-muted-foreground">• {outbreak.trend}</span>}
+                                                </p>
+                                                {outbreak.recommendedAction && (
+                                                    <p className="text-sm mt-2 p-2 bg-background/50 rounded border">
+                                                        <strong>Action:</strong> {outbreak.recommendedAction}
+                                                    </p>
+                                                )}
                                             </div>
-                                            <p className="text-sm">
-                                                <span className="font-medium">{outbreak.recentCount} cases</span> in last 24 hours
-                                                (baseline: {outbreak.baselineAverage}/day)
-                                            </p>
-                                            <p className="text-sm">
-                                                <TrendingUp className="h-4 w-4 inline mr-1" />
-                                                <span className="font-semibold">{outbreak.increase}% increase</span> above normal
-                                            </p>
-                                        </div>
-                                        <div className="text-right text-sm text-muted-foreground">
-                                            Detected: {new Date(outbreak.detected_at).toLocaleString()}
+                                            <div className="text-right text-sm text-muted-foreground">
+                                                Detected: {new Date(outbreak.detected_at).toLocaleString()}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </Card>
                 )}
@@ -263,18 +311,18 @@ export default function PublicHealthDashboard() {
                 <Card className="p-6">
                     <div className="flex items-center gap-2 mb-4">
                         <MapPin className="h-5 w-5 text-primary" />
-                        <h3 className="text-lg font-semibold">Cases by Facility</h3>
+                        <h3 className="text-lg font-semibold">Cases by Area</h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {data?.facilityCounts.map((facility, idx) => (
+                        {data?.areaCounts?.map((area, idx) => (
                             <div key={idx} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="font-medium">{facility.name}</p>
-                                        <p className="text-sm text-muted-foreground">Facility</p>
+                                        <p className="font-medium">{area.name}</p>
+                                        <p className="text-sm text-muted-foreground">Area</p>
                                     </div>
                                     <Badge variant="outline" className="text-lg font-bold">
-                                        {facility.count}
+                                        {area.count}
                                     </Badge>
                                 </div>
                             </div>

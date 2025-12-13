@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,24 @@ export default function VoiceMode() {
     const [transcript, setTranscript] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [result, setResult] = useState<any>(null);
+
+    // Speak initial greeting when component loads
+    useEffect(() => {
+        const greeting = "Hello! I'm ready to help you record patient symptoms. Please describe the patient's symptoms, medical history, or chief complaint. You can start speaking now.";
+
+        // Small delay to ensure speech synthesis is ready
+        setTimeout(() => {
+            const utterance = new SpeechSynthesisUtterance(greeting);
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            window.speechSynthesis.speak(utterance);
+        }, 500);
+
+        return () => {
+            window.speechSynthesis.cancel();
+        };
+    }, []);
 
     const handleTranscript = (text: string) => {
         setTranscript(text);

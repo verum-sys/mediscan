@@ -277,7 +277,7 @@ router.post('/process-voice', async (req, res) => {
 // Patient Intake - AI Chatbot Conversation
 router.post('/patient-intake', async (req, res) => {
     try {
-        const { messages, currentData } = req.body;
+        const { messages, currentData, language = 'en-US' } = req.body;
 
         const llmApiKey = process.env.LLM_API_KEY;
         const llmBaseUrl = process.env.LLM_BASE_URL || 'https://api.cerebras.ai/v1';
@@ -286,6 +286,38 @@ router.post('/patient-intake', async (req, res) => {
         if (!llmApiKey) {
             return res.status(500).json({ error: 'LLM API key not configured' });
         }
+
+        // Language name mapping for system prompt
+        const languageNames = {
+            // English
+            'en-US': 'English',
+
+            // Indian Languages
+            'as-IN': 'Assamese (অসমীয়া)',
+            'bn-IN': 'Bengali (বাংলা)',
+            'gu-IN': 'Gujarati (ગુજરાતી)',
+            'hi-IN': 'Hindi (हिन्दी)',
+            'kn-IN': 'Kannada (ಕನ್ನಡ)',
+            'ml-IN': 'Malayalam (മലയാളം)',
+            'mr-IN': 'Marathi (मराठी)',
+            'or-IN': 'Odia (ଓଡ଼ିଆ)',
+            'pa-IN': 'Punjabi (ਪੰਜਾਬੀ)',
+            'ta-IN': 'Tamil (தமிழ்)',
+            'te-IN': 'Telugu (తెలుగు)',
+            'ur-IN': 'Urdu (اردو)',
+
+            // Other major languages
+            'es-ES': 'Spanish (Español)',
+            'fr-FR': 'French (Français)',
+            'de-DE': 'German (Deutsch)',
+            'ar-SA': 'Arabic (العربية)',
+            'pt-BR': 'Portuguese (Português)',
+            'ru-RU': 'Russian (Русский)',
+            'ja-JP': 'Japanese (日本語)',
+            'zh-CN': 'Chinese (中文)'
+        };
+
+        const selectedLanguageName = languageNames[language] || 'English';
 
         // System prompt for patient intake
         const systemPrompt = `You are a friendly AI health assistant conducting a patient intake interview. Your goal is to collect the following information:
@@ -299,17 +331,19 @@ router.post('/patient-intake', async (req, res) => {
 7. Current medications
 8. Allergies
 
+IMPORTANT: Respond ONLY in ${selectedLanguageName}. All your questions and responses must be in this language.
+
 Guidelines:
 - Ask ONE question at a time
 - Be warm, empathetic, and professional
-- Use simple, clear language
+- Use simple, clear language in ${selectedLanguageName}
 - If patient mentions symptoms, ask follow-up questions (severity, duration, onset)
 - Extract and structure the information as you go
-- When you have all information, say "Thank you! I have all the information needed. You can now submit this to your doctor."
+- When you have all information, say "Thank you! I have all the information needed. You can now submit this to your doctor." (translated to ${selectedLanguageName})
 
 Current collected data: ${JSON.stringify(currentData)}
 
-Based on what's missing, ask the next appropriate question. Be conversational and natural.`;
+Based on what's missing, ask the next appropriate question in ${selectedLanguageName}. Be conversational and natural.`;
 
         const aiResponse = await fetch(`${llmBaseUrl}/chat/completions`, {
             method: 'POST',
@@ -331,7 +365,15 @@ Based on what's missing, ask the next appropriate question. Be conversational an
         }
 
         const aiResult = await aiResponse.json();
-        const response = aiResult.choices[0]?.message?.content || 'I apologize, could you please repeat that?';
+        let response = aiResult.choices[0]?.message?.content || 'I apologize, could you please repeat that?';
+
+        // Clean up response - remove any system prompt leakage
+        // Remove "Current collected data:" and similar debug info
+        response = response
+            .replace(/Current collected data:.*$/gim, '')
+            .replace(/Based on what's missing.*$/gim, '')
+            .replace(/\{.*"symptoms".*\}/gim, '')
+            .trim();
 
         // Extract patient data from conversation
         const lastUserMessage = messages[messages.length - 1]?.content || '';
@@ -374,7 +416,7 @@ router.post('/patient-intake/submit', async (req, res) => {
     try {
         const { patientData, conversation } = req.body;
 
-        // Generate summary from conversation
+        // Generate summary from conversation (EXCLUDING patient name for privacy)
         const conversationText = conversation
             .map(m => `${m.role === 'user' ? 'Patient' : 'AI'}: ${m.content}`)
             .join('\n');
@@ -394,16 +436,17 @@ router.post('/patient-intake/submit', async (req, res) => {
             }
         });
 
-        // Create visit
+        // Create visit WITHOUT patient name (privacy protection)
+        // Name is collected for conversation but NOT stored in clinical db
         const visit = await service.createVisit({
             facilityName: 'Patient Self-Intake',
             department: 'General',
             providerName: 'Awaiting Assignment',
             chiefComplaint: patientData.chiefComplaint || symptoms.join(', ') || 'Patient intake completed',
-            visitNotes: `Patient Self-Intake Summary:\n\nName: ${patientData.name || 'Not provided'}\nAge: ${patientData.age || 'Not provided'}\nGender: ${patientData.gender || 'Not provided'}\n\nConversation:\n${conversationText}`,
+            visitNotes: `Patient Self-Intake Summary (Name withheld for privacy):\n\nAge: ${patientData.age || 'Not provided'}\nGender: ${patientData.gender || 'Not provided'}\n\nConversation:\n${conversationText}`,
             sourceType: 'patient_intake',
             confidenceScore: 90,
-            summary: `Patient ${patientData.name || 'Unknown'} completed self-intake. Chief complaint: ${patientData.chiefComplaint || symptoms.join(', ')}`
+            summary: `Patient completed self-intake. Chief complaint: ${patientData.chiefComplaint || symptoms.join(', ')}`
         });
 
         // Add symptoms
@@ -540,6 +583,51 @@ router.get('/surveillance/outbreaks', async (req, res) => {
     try {
         const outbreaks = await service.detectOutbreaks();
         res.json(outbreaks);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ==========================================
+// ENHANCED SURVEILLANCE ROUTES (PINCODE-BASED)
+// ==========================================
+
+// Get enhanced surveillance data with pincode clustering
+router.get('/surveillance/enhanced-data', async (req, res) => {
+    try {
+        const data = await service.getSurveillanceDataEnhanced();
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Get enhanced outbreak detection by area
+router.get('/surveillance/outbreaks-by-area', async (req, res) => {
+    try {
+        const outbreaks = await service.detectOutbreaksEnhanced();
+        res.json(outbreaks);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Get outbreaks by pincode
+router.get('/surveillance/outbreaks/:pincode', async (req, res) => {
+    try {
+        res.setHeader('Cache-Control', 'no-store');
+        const outbreaks = await service.getOutbreaksByPincode(req.params.pincode);
+        res.json(outbreaks);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Get emergency triage statistics
+router.get('/emergency/triage-stats', async (req, res) => {
+    try {
+        const stats = await service.getEmergencyTriageStats();
+        res.json(stats);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

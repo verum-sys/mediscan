@@ -19,7 +19,9 @@ import {
     ArrowLeft,
     MessageSquare,
     Bot,
-    Mic
+    Mic,
+    ThumbsUp,
+    ThumbsDown
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,6 +44,20 @@ export default function DDXTool() {
     const [differentials, setDifferentials] = useState<any[]>([]);
     const [generatedVisitId, setGeneratedVisitId] = useState<string | null>(null);
     const [doctorName, setDoctorName] = useState("");
+    const [feedback, setFeedback] = useState<Record<string, 'up' | 'down'>>({});
+
+    const handleFeedback = (id: string, type: 'up' | 'down') => {
+        setFeedback(prev => ({
+            ...prev,
+            [id]: prev[id] === type ? undefined : type // Toggle
+        } as any));
+
+        toast({
+            title: "Feedback Recorded",
+            description: `You marked this diagnosis as ${type === 'up' ? 'Helpful' : 'Not Helpful'}`,
+            duration: 2000
+        });
+    };
 
     // Chat State
     const [messages, setMessages] = useState<ChatMessage[]>([
@@ -503,6 +519,27 @@ export default function DDXTool() {
                                                             </div>
                                                         </div>
                                                     )}
+
+                                                    {/* Feedback Loop */}
+                                                    <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-border/50">
+                                                        <span className="text-xs text-muted-foreground mr-2">Rate this prediction:</span>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className={`h-8 w-8 p-0 ${feedback[String(diff.id || index)] === 'up' ? 'text-green-600 bg-green-100' : 'hover:text-green-600'}`}
+                                                            onClick={() => handleFeedback(String(diff.id || index), 'up')}
+                                                        >
+                                                            <ThumbsUp className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className={`h-8 w-8 p-0 ${feedback[String(diff.id || index)] === 'down' ? 'text-red-600 bg-red-100' : 'hover:text-red-600'}`}
+                                                            onClick={() => handleFeedback(String(diff.id || index), 'down')}
+                                                        >
+                                                            <ThumbsDown className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>

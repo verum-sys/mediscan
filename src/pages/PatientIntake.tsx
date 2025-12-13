@@ -15,9 +15,18 @@ import {
     CheckCircle2,
     Loader2,
     ArrowLeft,
-    Sparkles
+    Sparkles,
+    Globe,
+    FileText
 } from 'lucide-react';
 import { getApiUrl } from '@/config';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface Message {
     role: 'assistant' | 'user';
@@ -36,9 +45,42 @@ interface PatientData {
     chiefComplaint?: string;
 }
 
+// Language options with their speech recognition codes
+const LANGUAGES = [
+    // English
+    { code: 'en-US', name: 'English', flag: '🇺🇸' },
+
+    // Indian Languages (organized alphabetically)
+    { code: 'as-IN', name: 'অসমীয়া (Assamese)', flag: '🇮🇳' },
+    { code: 'bn-IN', name: 'বাংলা (Bengali)', flag: '🇮🇳' },
+    { code: 'gu-IN', name: 'ગુજરાતી (Gujarati)', flag: '🇮🇳' },
+    { code: 'hi-IN', name: 'हिन्दी (Hindi)', flag: '🇮🇳' },
+    { code: 'kn-IN', name: 'ಕನ್ನಡ (Kannada)', flag: '🇮🇳' },
+    { code: 'ml-IN', name: 'മലയാളം (Malayalam)', flag: '🇮🇳' },
+    { code: 'mr-IN', name: 'मराठी (Marathi)', flag: '🇮🇳' },
+    { code: 'or-IN', name: 'ଓଡ଼ିଆ (Odia)', flag: '🇮🇳' },
+    { code: 'pa-IN', name: 'ਪੰਜਾਬੀ (Punjabi)', flag: '🇮🇳' },
+    { code: 'ta-IN', name: 'தமிழ் (Tamil)', flag: '🇮🇳' },
+    { code: 'te-IN', name: 'తెలుగు (Telugu)', flag: '🇮🇳' },
+    { code: 'ur-IN', name: 'اردو (Urdu)', flag: '🇮🇳' },
+
+    // Other major languages
+    { code: 'es-ES', name: 'Español (Spanish)', flag: '🇪🇸' },
+    { code: 'fr-FR', name: 'Français (French)', flag: '🇫🇷' },
+    { code: 'de-DE', name: 'Deutsch (German)', flag: '🇩🇪' },
+    { code: 'ar-SA', name: 'العربية (Arabic)', flag: '🇸🇦' },
+    { code: 'pt-BR', name: 'Português (Portuguese)', flag: '🇧🇷' },
+    { code: 'ru-RU', name: 'Русский (Russian)', flag: '🇷🇺' },
+    { code: 'ja-JP', name: '日本語 (Japanese)', flag: '🇯🇵' },
+    { code: 'zh-CN', name: '中文 (Chinese)', flag: '🇨🇳' },
+];
+
 export default function PatientIntake() {
     const navigate = useNavigate();
     const { toast } = useToast();
+
+    // Language state
+    const [selectedLanguage, setSelectedLanguage] = useState('en-US');
 
     // Chat state
     const [messages, setMessages] = useState<Message[]>([
@@ -58,6 +100,7 @@ export default function PatientIntake() {
     const recognitionRef = useRef<any>(null);
     const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const messagesRef = useRef<Message[]>(messages); // Track latest messages
 
     // Patient data
     const [patientData, setPatientData] = useState<PatientData>({
@@ -67,6 +110,11 @@ export default function PatientIntake() {
         allergies: []
     });
     const [isComplete, setIsComplete] = useState(false);
+
+    // Keep messagesRef in sync with messages state
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
 
     // Initialize speech recognition
     useEffect(() => {
@@ -85,7 +133,7 @@ export default function PatientIntake() {
 
         recognition.continuous = false;
         recognition.interimResults = false;
-        recognition.lang = 'en-US';
+        recognition.lang = selectedLanguage; // Use selected language
 
         recognition.onresult = (event: any) => {
             const transcript = event.results[0][0].transcript;
@@ -112,7 +160,18 @@ export default function PatientIntake() {
                 window.speechSynthesis.cancel();
             }
         };
-    }, []);
+    }, [selectedLanguage]); // Reinitialize when language changes
+
+    // Speak initial greeting when component loads
+    useEffect(() => {
+        const initialGreeting = messages[0]?.content;
+        if (initialGreeting) {
+            // Small delay to ensure speech synthesis is ready
+            setTimeout(() => {
+                speak(initialGreeting);
+            }, 500);
+        }
+    }, []); // Only run on mount
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -129,6 +188,14 @@ export default function PatientIntake() {
         utterance.rate = 0.9;
         utterance.pitch = 1;
         utterance.volume = 1;
+        utterance.lang = selectedLanguage;
+
+        // Try to find a voice that matches the selected language
+        const voices = window.speechSynthesis.getVoices();
+        const languageVoice = voices.find(voice => voice.lang.startsWith(selectedLanguage.split('-')[0]));
+        if (languageVoice) {
+            utterance.voice = languageVoice;
+        }
 
         utterance.onstart = () => setIsSpeaking(true);
         utterance.onend = () => setIsSpeaking(false);
@@ -170,18 +237,23 @@ export default function PatientIntake() {
             timestamp: new Date()
         };
 
-        setMessages(prev => [...prev, userMessage]);
+        // Clear input immediately
         setInputText('');
         setIsProcessing(true);
 
         try {
-            // Send to backend for processing
+            // ALWAYS use messagesRef.current to get the latest state
+            // This prevents closure capture issues when multiple calls happen quickly
+            const updatedMessages = [...messagesRef.current, userMessage];
+
+            // Send COMPLETE conversation history to backend
             const response = await fetch(getApiUrl('/api/patient-intake'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    messages: [...messages, userMessage],
-                    currentData: patientData
+                    messages: updatedMessages, // Send full conversation including new message
+                    currentData: patientData,
+                    language: selectedLanguage // Send selected language to backend
                 })
             });
 
@@ -194,7 +266,9 @@ export default function PatientIntake() {
                     timestamp: new Date()
                 };
 
-                setMessages(prev => [...prev, assistantMessage]);
+                // Update messages with BOTH user and assistant messages at once
+                // This prevents race conditions from multiple state updates
+                setMessages([...updatedMessages, assistantMessage]);
 
                 // Speak the response
                 speak(data.response);
@@ -218,6 +292,8 @@ export default function PatientIntake() {
                 description: "Failed to process your message. Please try again.",
                 variant: "destructive"
             });
+            // On error, still add user message to show what was said
+            setMessages(prev => [...prev, userMessage]);
         } finally {
             setIsProcessing(false);
         }
@@ -271,29 +347,68 @@ export default function PatientIntake() {
                         </h1>
                         <p className="text-muted-foreground">AI-assisted health information collection</p>
                     </div>
-                    <Button variant="ghost" onClick={() => navigate('/')}>
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Exit
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            onClick={submitToDoctor}
+                            disabled={isProcessing || messages.length < 2}
+                            className="bg-primary hover:bg-primary/90"
+                        >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Summarize
+                        </Button>
+                        <Button variant="ghost" onClick={() => navigate('/')}>
+                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            Exit
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Main Chat Card */}
                 <Card className="glass-card flex flex-col h-[600px]">
                     {/* Chat Header */}
                     <div className="p-4 border-b flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 flex items-center justify-center">
+                        <Button
+                            variant="ghost"
+                            className="h-auto p-2 -ml-2 hover:bg-muted flex items-center gap-2 text-left group"
+                            onClick={() => {
+                                setIsComplete(true);
+                                toast({
+                                    title: "Interview Completed",
+                                    description: "Please click the 'Submit' button at the bottom.",
+                                    duration: 3000
+                                });
+                            }}
+                        >
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 flex items-center justify-center group-hover:shadow-md transition-shadow">
                                 <Sparkles className="h-5 w-5 text-white" />
                             </div>
-                            <div>
-                                <h2 className="font-semibold">AI Health Assistant</h2>
-                                <p className="text-xs text-muted-foreground">
-                                    {isComplete ? 'Interview Complete' : 'Collecting Information'}
+                            <div className="flex flex-col items-start">
+                                <h2 className="font-semibold text-foreground">AI Health Assistant</h2>
+                                <p className="text-xs text-muted-foreground group-hover:text-primary transition-colors">
+                                    {isComplete ? 'Ready to Submit' : 'Click to Finish Interview'}
                                 </p>
                             </div>
-                        </div>
+                        </Button>
 
                         <div className="flex items-center gap-2">
+                            {/* Language Selector */}
+                            <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                                <SelectTrigger className="w-[140px] h-9">
+                                    <Globe className="h-4 w-4 mr-2" />
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {LANGUAGES.map((lang) => (
+                                        <SelectItem key={lang.code} value={lang.code}>
+                                            <span className="flex items-center gap-2">
+                                                <span>{lang.flag}</span>
+                                                <span className="text-sm">{lang.name.split('(')[0].trim()}</span>
+                                            </span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -320,8 +435,8 @@ export default function PatientIntake() {
                             >
                                 <div
                                     className={`max-w-[80%] p-3 rounded-lg ${msg.role === 'user'
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-muted'
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-muted'
                                         }`}
                                 >
                                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
@@ -369,8 +484,8 @@ export default function PatientIntake() {
                                     </>
                                 ) : (
                                     <>
-                                        <CheckCircle2 className="h-5 w-5 mr-2" />
-                                        Submit to Doctor
+                                        <FileText className="h-5 w-5 mr-2" />
+                                        Summarize & Submit
                                     </>
                                 )}
                             </Button>
