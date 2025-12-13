@@ -1,6 +1,6 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
-
 import { MobileNav } from "./MobileNav";
 
 interface LayoutProps {
@@ -8,6 +8,17 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
+  const location = useLocation();
+  const isPatientIntake = location.pathname === '/patient-intake';
+
+  if (isPatientIntake) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       <Sidebar />

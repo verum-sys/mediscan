@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
@@ -45,54 +46,58 @@ interface PatientData {
     chiefComplaint?: string;
 }
 
-// Language options with their speech recognition codes
+// Language options
 const LANGUAGES = [
-    // English
     { code: 'en-US', name: 'English', flag: '🇺🇸' },
-
-    // Indian Languages (organized alphabetically)
-    { code: 'as-IN', name: 'অসমীয়া (Assamese)', flag: '🇮🇳' },
-    { code: 'bn-IN', name: 'বাংলা (Bengali)', flag: '🇮🇳' },
-    { code: 'gu-IN', name: 'ગુજરાતી (Gujarati)', flag: '🇮🇳' },
     { code: 'hi-IN', name: 'हिन्दी (Hindi)', flag: '🇮🇳' },
+    { code: 'bn-IN', name: 'বাংলা (Bengali)', flag: '🇮🇳' },
+    { code: 'te-IN', name: 'తెలుగు (Telugu)', flag: '🇮🇳' },
+    { code: 'mr-IN', name: 'मराठी (Marathi)', flag: '🇮🇳' },
+    { code: 'ta-IN', name: 'தமிழ் (Tamil)', flag: '🇮🇳' },
+    { code: 'gu-IN', name: 'ગુજરાતી (Gujarati)', flag: '🇮🇳' },
     { code: 'kn-IN', name: 'ಕನ್ನಡ (Kannada)', flag: '🇮🇳' },
     { code: 'ml-IN', name: 'മലയാളം (Malayalam)', flag: '🇮🇳' },
-    { code: 'mr-IN', name: 'मराठी (Marathi)', flag: '🇮🇳' },
-    { code: 'or-IN', name: 'ଓଡ଼ିଆ (Odia)', flag: '🇮🇳' },
     { code: 'pa-IN', name: 'ਪੰਜਾਬੀ (Punjabi)', flag: '🇮🇳' },
-    { code: 'ta-IN', name: 'தமிழ் (Tamil)', flag: '🇮🇳' },
-    { code: 'te-IN', name: 'తెలుగు (Telugu)', flag: '🇮🇳' },
-    { code: 'ur-IN', name: 'اردو (Urdu)', flag: '🇮🇳' },
-
-    // Other major languages
     { code: 'es-ES', name: 'Español (Spanish)', flag: '🇪🇸' },
     { code: 'fr-FR', name: 'Français (French)', flag: '🇫🇷' },
     { code: 'de-DE', name: 'Deutsch (German)', flag: '🇩🇪' },
     { code: 'ar-SA', name: 'العربية (Arabic)', flag: '🇸🇦' },
-    { code: 'pt-BR', name: 'Português (Portuguese)', flag: '🇧🇷' },
-    { code: 'ru-RU', name: 'Русский (Russian)', flag: '🇷🇺' },
     { code: 'ja-JP', name: '日本語 (Japanese)', flag: '🇯🇵' },
     { code: 'zh-CN', name: '中文 (Chinese)', flag: '🇨🇳' },
 ];
+
+const GREETINGS: Record<string, string> = {
+    'en-US': "Hello! I'm your AI health assistant. To begin, could you please tell me your Name, Age, Gender, and Residential Area?",
+    'hi-IN': "नमस्ते! मैं आपका एआई स्वास्थ्य सहायक हूं। कृपया अपना नाम, उम्र, लिंग और आवासीय क्षेत्र बताएं।",
+    'bn-IN': "হ্যালো! আমি আপনার এআই স্বাস্থ্য সহকারী। শুরু করতে, দয়া করে আপনার নাম, বয়স, লিঙ্গ এবং আবাসিক এলাকা বলুন।",
+    'te-IN': "హలో! నేను మీ AI హెల్త్ అసిస్టెంట్‌ని. ప్రారంభించడానికి, దయచేసి మీ పేరు, వయస్సు, లింగం మరియు నివాస ప్రాంతాన్ని నాకు చెప్పగలరా?",
+    'mr-IN': "नमस्कार! मी तुमचा एआय आरोग्य सहाय्यक आहे. सुरू करण्यासाठी, कृपया मला तुमचे नाव, वय, लिंग आणि निवासी क्षेत्र सांगू शकाल का?",
+    'ta-IN': "வணக்கம்! நான் உங்கள் AI சுகாதார உதவியாளர். தொடங்குவதற்கு, உங்கள் பெயர், வயது, பாலினம் மற்றும் வசிப்பிடத்தைச் சொல்ல முடியுமா?",
+    'gu-IN': "નમસ્તે! હું તમારો AI સ્વાસ્થ્ય સહાયક છું. શરૂ કરવા માટે, કૃપા કરીને મને તમારું નામ, ઉંમર, જાતિ અને રહેણાંક વિસ્તાર જણાવી શકશો?",
+    'kn-IN': "ನಮಸ್ಕಾರ! ನಾನು ನಿಮ್ಮ AI ಆರೋಗ್ಯ ಸಹಾಯಕ. ಪ್ರಾರಂಭಿಸಲು, ದಯವಿಟ್ಟು ನಿಮ್ಮ ಹೆಸರು, ವಯಸ್ಸು, ಲಿಂಗ ಮತ್ತು ವಾಸಸ್ಥಳವನ್ನು ಹೇಳಬಲ್ಲಿರಾ?",
+    'ml-IN': "ഹലോ! ഞാൻ നിങ്ങളുടെ AI ഹെൽത്ത് അസിസ്റ്റന്റാണ്. തുടങ്ങുന്നതിനായി, നിങ്ങളുടെ പേര്, പ്രായം, ലിംഗഭേദം, താമസസ്ഥലം എന്നിവ പറയാമോ?",
+    'pa-IN': "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਤੁਹਾਡਾ AI ਸਿਹਤ ਸਹਾਇਕ ਹਾਂ। ਸ਼ੁਰੂ ਕਰਨ ਲਈ, ਕੀ ਤੁਸੀਂ ਮੈਨੂੰ ਆਪਣਾ ਨਾਮ, ਉਮਰ, ਲਿੰਗ ਅਤੇ ਰਿਹਾਇਸ਼ੀ ਖੇਤਰ ਦੱਸ ਸਕਦੇ ਹੋ?",
+    'es-ES': "¡Hola! Soy tu asistente de salud IA. Para comenzar, ¿podrías decirme tu Nombre, Edad, Género y Área Residencial?",
+    'fr-FR': "Bonjour! Je suis votre assistant de santé IA. Pour commencer, pourriez-vous me dire votre Nom, Âge, Sexe et Zone Résidentielle?",
+    'de-DE': "Hallo! Ich bin Ihr KI-Gesundheitsassistent. Könnten Sie mir bitte Ihren Namen, Ihr Alter, Ihr Geschlecht und Wohnort nennen?",
+    'ar-SA': "مرحبًا! أنا مساعدك الصحي بالذكاء الاصطناعي. للبدء، هل يمكنك إخباري باسمك، وعمرك، وجنسك، ومنطقتك السكنية؟",
+    'ja-JP': "こんにちは！私はあなたのAIヘルスアシスタントです。始めに、お名前、年齢、性別、居住地域を教えていただけますか？",
+    'zh-CN': "你好！我是你的AI健康助手。首先，请告诉我你的姓名、年龄、性别和居住地区？"
+};
 
 export default function PatientIntake() {
     const navigate = useNavigate();
     const { toast } = useToast();
 
     // Language state
+    const [hasSelectedLanguage, setHasSelectedLanguage] = useState(false);
     const [selectedLanguage, setSelectedLanguage] = useState('en-US');
 
     // Generate PID once on mount
     const [pid] = useState(`PID-${Math.floor(1000 + Math.random() * 9000)}`);
 
     // Chat state
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            role: 'assistant',
-            content: 'Hello! I\'m your AI health assistant. To begin, could you please tell me your Name, Age, Gender, and Residential Area?',
-            timestamp: new Date()
-        }
-    ]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -103,7 +108,7 @@ export default function PatientIntake() {
     const recognitionRef = useRef<any>(null);
     const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
-    const messagesRef = useRef<Message[]>(messages); // Track latest messages
+    const messagesRef = useRef<Message[]>(messages);
 
     // Patient data
     const [patientData, setPatientData] = useState<PatientData>({
@@ -114,12 +119,12 @@ export default function PatientIntake() {
     });
     const [isComplete, setIsComplete] = useState(false);
 
-    // Keep messagesRef in sync with messages state
+    // Sync messagesRef
     useEffect(() => {
         messagesRef.current = messages;
     }, [messages]);
 
-    // Auto-submit and redirect when interview is complete
+    // Auto-submit when complete
     useEffect(() => {
         if (isComplete) {
             toast({
@@ -127,33 +132,27 @@ export default function PatientIntake() {
                 description: "Redirecting to your clinical report in 5 seconds...",
                 duration: 5000
             });
-
-            const timer = setTimeout(() => {
-                submitToDoctor();
-            }, 5000); // 5 second delay to read the final message (Room #, PID)
-
+            const timer = setTimeout(() => submitToDoctor(), 5000);
             return () => clearTimeout(timer);
         }
     }, [isComplete]);
 
-    // Initialize speech recognition
+    // Initialize speech recognition and voices
     useEffect(() => {
+        // Preload voices
+        const loadVoices = () => window.speechSynthesis.getVoices();
+        loadVoices();
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            toast({
-                title: "Voice Not Supported",
-                description: "Your browser doesn't support voice input. Please use text input.",
-                variant: "destructive"
-            });
             setVoiceEnabled(false);
             return;
         }
-
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
-
         recognition.continuous = false;
         recognition.interimResults = false;
-        recognition.lang = selectedLanguage; // Use selected language
+        recognition.lang = selectedLanguage;
 
         recognition.onresult = (event: any) => {
             const transcript = event.results[0][0].transcript;
@@ -165,57 +164,71 @@ export default function PatientIntake() {
             console.error('Speech recognition error:', event.error);
             setIsListening(false);
         };
-
-        recognition.onend = () => {
-            setIsListening(false);
-        };
-
+        recognition.onend = () => setIsListening(false);
         recognitionRef.current = recognition;
 
         return () => {
-            if (recognitionRef.current) {
-                recognitionRef.current.stop();
-            }
-            if (synthRef.current) {
-                window.speechSynthesis.cancel();
-            }
+            recognitionRef.current?.stop();
+            window.speechSynthesis.cancel();
         };
-    }, [selectedLanguage]); // Reinitialize when language changes
+    }, [selectedLanguage]);
 
-    // Speak initial greeting when component loads
-    useEffect(() => {
-        const initialGreeting = messages[0]?.content;
-        if (initialGreeting) {
-            // Small delay to ensure speech synthesis is ready
-            setTimeout(() => {
-                speak(initialGreeting);
-            }, 500);
-        }
-    }, []); // Only run on mount
-
-    // Auto-scroll to bottom
+    // Auto-scroll
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Text-to-speech function
-    const speak = (text: string) => {
+    // Enhanced speak function with fallback
+    const speak = (text: string, languageOverride?: string, fallbackText?: string) => {
         if (!voiceEnabled) return;
 
-        window.speechSynthesis.cancel();
+        let targetLang = languageOverride || selectedLanguage;
+        let textToSpeak = text;
 
-        const utterance = new SpeechSynthesisUtterance(text);
+        const voices = window.speechSynthesis.getVoices();
+        // Try strict match first, then loose match (e.g. 'bn-IN' matches 'bn')
+        let languageVoice = voices.find(v => v.lang === targetLang) ||
+            voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+
+        // Debug
+        // console.log(`Speaking in ${targetLang}. Found voice: ${languageVoice?.name}`);
+
+        if (!languageVoice) {
+            // Special handling for Indian languages falling back to Hindi if available (experimental)
+            // But usually safer to fallback to English or silent.
+
+            if (fallbackText) {
+                // We have a fallback (e.g. English greeting)
+                console.warn(`Voice for ${targetLang} not available. Fallback to English.`);
+                textToSpeak = fallbackText;
+                targetLang = 'en-US';
+                languageVoice = voices.find(v => v.lang.startsWith('en'));
+
+                toast({
+                    title: "Language Voice Missing",
+                    description: "Native voice not installed. Speaking in English.",
+                    variant: "default"
+                });
+            } else {
+                // No fallback available (e.g. dynamic chat response)
+                // Do not speak to avoid gibberish
+                toast({
+                    title: "Voice Not Available",
+                    description: `Your device does not support TTS for ${targetLang}.`,
+                    variant: "destructive"
+                });
+                return;
+            }
+        }
+
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
         utterance.rate = 0.9;
         utterance.pitch = 1;
         utterance.volume = 1;
-        utterance.lang = selectedLanguage;
+        utterance.lang = targetLang;
 
-        // Try to find a voice that matches the selected language
-        const voices = window.speechSynthesis.getVoices();
-        const languageVoice = voices.find(voice => voice.lang.startsWith(selectedLanguage.split('-')[0]));
-        if (languageVoice) {
-            utterance.voice = languageVoice;
-        }
+        if (languageVoice) utterance.voice = languageVoice;
 
         utterance.onstart = () => setIsSpeaking(true);
         utterance.onend = () => setIsSpeaking(false);
@@ -225,10 +238,8 @@ export default function PatientIntake() {
         window.speechSynthesis.speak(utterance);
     };
 
-    // Toggle voice listening
     const toggleListening = () => {
         if (!recognitionRef.current) return;
-
         if (isListening) {
             recognitionRef.current.stop();
         } else {
@@ -237,7 +248,6 @@ export default function PatientIntake() {
         }
     };
 
-    // Toggle voice output
     const toggleVoice = () => {
         setVoiceEnabled(!voiceEnabled);
         if (voiceEnabled) {
@@ -246,7 +256,25 @@ export default function PatientIntake() {
         }
     };
 
-    // Handle message submission
+    const handleLanguageSelect = (langCode: string) => {
+        setSelectedLanguage(langCode);
+        setHasSelectedLanguage(true);
+
+        const greetingText = GREETINGS[langCode] || GREETINGS['en-US'];
+        const fallbackGreeting = GREETINGS['en-US'];
+
+        const initialMessage: Message = {
+            role: 'assistant',
+            content: greetingText,
+            timestamp: new Date()
+        };
+
+        setMessages([initialMessage]);
+
+        // Pass language explicitly + fallback
+        setTimeout(() => speak(greetingText, langCode, fallbackGreeting), 500);
+    };
+
     const handleSubmit = async (text?: string) => {
         const messageText = text || inputText;
         if (!messageText.trim() || isProcessing) return;
@@ -257,52 +285,34 @@ export default function PatientIntake() {
             timestamp: new Date()
         };
 
-        // Clear input immediately
         setInputText('');
         setIsProcessing(true);
 
         try {
-            // ALWAYS use messagesRef.current to get the latest state
-            // This prevents closure capture issues when multiple calls happen quickly
             const updatedMessages = [...messagesRef.current, userMessage];
-
-            // Send COMPLETE conversation history to backend
             const response = await fetch(getApiUrl('/api/patient-intake'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    messages: updatedMessages, // Send full conversation including new message
+                    messages: updatedMessages,
                     currentData: patientData,
-                    language: selectedLanguage, // Send selected language to backend
-                    pid: pid // Send PID for System Prompt context
+                    language: selectedLanguage, // Current selected language
+                    pid: pid
                 })
             });
 
             if (response.ok) {
                 const data = await response.json();
-
                 const assistantMessage: Message = {
                     role: 'assistant',
                     content: data.response,
                     timestamp: new Date()
                 };
-
-                // Update messages with BOTH user and assistant messages at once
-                // This prevents race conditions from multiple state updates
                 setMessages([...updatedMessages, assistantMessage]);
-
-                // Speak the response
+                // Speak response (using current state lang). No fallback for dynamic content yet.
                 speak(data.response);
-
-                // Update patient data
-                if (data.patientData) {
-                    setPatientData(data.patientData);
-                }
-
-                // Check if intake is complete
-                if (data.isComplete) {
-                    setIsComplete(true);
-                }
+                if (data.patientData) setPatientData(data.patientData);
+                if (data.isComplete) setIsComplete(true);
             } else {
                 throw new Error('Failed to process message');
             }
@@ -310,17 +320,15 @@ export default function PatientIntake() {
             console.error('Error:', error);
             toast({
                 title: "Error",
-                description: "Failed to process your message. Please try again.",
+                description: "Failed to process message.",
                 variant: "destructive"
             });
-            // On error, still add user message to show what was said
             setMessages(prev => [...prev, userMessage]);
         } finally {
             setIsProcessing(false);
         }
     };
 
-    // Submit to doctor
     const submitToDoctor = async () => {
         setIsProcessing(true);
         try {
@@ -330,7 +338,7 @@ export default function PatientIntake() {
                 body: JSON.stringify({
                     patientData,
                     conversation: messages,
-                    pid: pid // Send PID for Visit Creation
+                    pid: pid
                 })
             });
 
@@ -340,8 +348,6 @@ export default function PatientIntake() {
                     title: "Submitted Successfully!",
                     description: "Your information has been sent to the doctor.",
                 });
-
-                // Navigate to confirmation or visit page
                 setTimeout(() => {
                     navigate(`/visit/${data.visitId}`);
                 }, 2000);
@@ -349,7 +355,7 @@ export default function PatientIntake() {
         } catch (error) {
             toast({
                 title: "Submission Failed",
-                description: "Please try again or contact support.",
+                description: "Please try again.",
                 variant: "destructive"
             });
         } finally {
@@ -357,6 +363,39 @@ export default function PatientIntake() {
         }
     };
 
+    // LANGUAGE SELECTION SCREEN
+    if (!hasSelectedLanguage) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-6">
+                <Card className="max-w-4xl w-full p-8 glass-card border-none shadow-2xl">
+                    <div className="text-center mb-8">
+                        <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Globe className="w-8 h-8 text-primary" />
+                        </div>
+                        <h1 className="text-3xl font-bold mb-2">Select Your Language</h1>
+                        <p className="text-muted-foreground">Please choose a language to begin your health assessment</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {LANGUAGES.map((lang) => (
+                            <Button
+                                key={lang.code}
+                                variant="outline"
+                                className="h-24 flex flex-col gap-2 hover:border-primary hover:bg-primary/5 transition-all text-lg"
+                                onClick={() => handleLanguageSelect(lang.code)}
+                            >
+                                <span className="text-3xl">{lang.flag}</span>
+                                <span className="font-medium">{lang.name.split('(')[0].trim()}</span>
+                                <span className="text-xs text-muted-foreground">{lang.name.split('(')[1]?.replace(')', '') || 'English'}</span>
+                            </Button>
+                        ))}
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+
+    // MAIN CHAT SCREEN
     return (
         <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-8">
             <div className="container mx-auto px-6 max-w-4xl">
@@ -367,7 +406,7 @@ export default function PatientIntake() {
                             <User className="h-8 w-8 text-primary" />
                             Patient Intake
                         </h1>
-                        <p className="text-muted-foreground">AI-assisted health information collection</p>
+                        <p className="text-muted-foreground">AI-assisted health information collection ({LANGUAGES.find(l => l.code === selectedLanguage)?.name})</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
@@ -387,50 +426,18 @@ export default function PatientIntake() {
 
                 {/* Main Chat Card */}
                 <Card className="glass-card flex flex-col h-[600px]">
-                    {/* Chat Header */}
                     <div className="p-4 border-b flex items-center justify-between">
-                        <Button
-                            variant="ghost"
-                            className="h-auto p-2 -ml-2 hover:bg-muted flex items-center gap-2 text-left group"
-                            onClick={() => {
-                                setIsComplete(true);
-                                toast({
-                                    title: "Interview Completed",
-                                    description: "Please click the 'Submit' button at the bottom.",
-                                    duration: 3000
-                                });
-                            }}
-                        >
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 flex items-center justify-center group-hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 flex items-center justify-center">
                                 <Sparkles className="h-5 w-5 text-white" />
                             </div>
-                            <div className="flex flex-col items-start">
-                                <h2 className="font-semibold text-foreground">AI Health Assistant</h2>
-                                <p className="text-xs text-muted-foreground group-hover:text-primary transition-colors">
-                                    {isComplete ? 'Ready to Submit' : 'Click to Finish Interview'}
-                                </p>
+                            <div>
+                                <h2 className="font-semibold">AI Health Assistant</h2>
+                                <p className="text-xs text-muted-foreground">Online • {pid}</p>
                             </div>
-                        </Button>
+                        </div>
 
                         <div className="flex items-center gap-2">
-                            {/* Language Selector */}
-                            <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                                <SelectTrigger className="w-[140px] h-9">
-                                    <Globe className="h-4 w-4 mr-2" />
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {LANGUAGES.map((lang) => (
-                                        <SelectItem key={lang.code} value={lang.code}>
-                                            <span className="flex items-center gap-2">
-                                                <span>{lang.flag}</span>
-                                                <span className="text-sm">{lang.name.split('(')[0].trim()}</span>
-                                            </span>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -439,36 +446,18 @@ export default function PatientIntake() {
                             >
                                 {voiceEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
                             </Button>
-                            {isComplete && (
-                                <Badge className="bg-green-500">
-                                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                                    Ready
-                                </Badge>
-                            )}
                         </div>
                     </div>
 
-                    {/* Messages */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
                         {messages.map((msg, idx) => (
-                            <div
-                                key={idx}
-                                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                            >
-                                <div
-                                    className={`max-w-[80%] p-3 rounded-lg ${msg.role === 'user'
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-muted'
-                                        }`}
-                                >
+                            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[80%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                                    <p className="text-xs opacity-70 mt-1">
-                                        {msg.timestamp.toLocaleTimeString()}
-                                    </p>
+                                    <p className="text-xs opacity-70 mt-1">{msg.timestamp.toLocaleTimeString()}</p>
                                 </div>
                             </div>
                         ))}
-
                         {isProcessing && (
                             <div className="flex justify-start">
                                 <div className="bg-muted p-3 rounded-lg flex items-center gap-2">
@@ -477,7 +466,6 @@ export default function PatientIntake() {
                                 </div>
                             </div>
                         )}
-
                         {isSpeaking && (
                             <div className="flex justify-start">
                                 <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex items-center gap-2">
@@ -486,11 +474,9 @@ export default function PatientIntake() {
                                 </div>
                             </div>
                         )}
-
                         <div ref={chatEndRef} />
                     </div>
 
-                    {/* Input Area */}
                     <div className="p-4 border-t">
                         {isComplete ? (
                             <Button
@@ -499,17 +485,8 @@ export default function PatientIntake() {
                                 className="w-full bg-green-500 hover:bg-green-600"
                                 size="lg"
                             >
-                                {isProcessing ? (
-                                    <>
-                                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                        Submitting...
-                                    </>
-                                ) : (
-                                    <>
-                                        <FileText className="h-5 w-5 mr-2" />
-                                        Summarize & Submit
-                                    </>
-                                )}
+                                {isProcessing ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <FileText className="h-5 w-5 mr-2" />}
+                                Summarize & Submit
                             </Button>
                         ) : (
                             <div className="flex gap-2">
@@ -528,37 +505,18 @@ export default function PatientIntake() {
                                             size="icon"
                                             onClick={toggleListening}
                                             disabled={isProcessing}
-                                            className={`absolute right-1 top-1/2 -translate-y-1/2 ${isListening ? 'text-red-500 animate-pulse' : ''
-                                                }`}
+                                            className={`absolute right-1 top-1/2 -translate-y-1/2 ${isListening ? 'text-red-500 animate-pulse' : ''}`}
                                         >
                                             {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                                         </Button>
                                     )}
                                 </div>
-                                <Button
-                                    onClick={() => handleSubmit()}
-                                    disabled={!inputText.trim() || isProcessing}
-                                >
+                                <Button onClick={() => handleSubmit()} disabled={!inputText.trim() || isProcessing}>
                                     <Send className="h-4 w-4" />
                                 </Button>
                             </div>
                         )}
                     </div>
-                </Card>
-
-                {/* Instructions */}
-                <Card className="glass-card p-4 mt-4 bg-blue-500/5 border-blue-500/20">
-                    <h3 className="font-semibold mb-2 flex items-center gap-2">
-                        <Mic className="h-4 w-4" />
-                        How to Use Voice Mode
-                    </h3>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                        <li>• Click the microphone icon to speak your response</li>
-                        <li>• The AI will ask you questions and respond with voice</li>
-                        <li>• You can type or speak - both work!</li>
-                        <li>• Click the speaker icon to mute AI voice responses</li>
-                        <li>• Complete all questions to submit to your doctor</li>
-                    </ul>
                 </Card>
             </div>
         </div>

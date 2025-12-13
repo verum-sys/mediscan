@@ -333,13 +333,7 @@ export default function Dashboard() {
   };
 
   const quickActions = [
-    {
-      icon: User,
-      label: "Patient Self-Intake",
-      description: "Voice-enabled patient information collection",
-      onClick: () => navigate("/patient-intake"),
-      color: "#10b981" // Emerald
-    },
+
     {
       icon: Camera,
       label: "Scan Case Sheet",
@@ -406,6 +400,14 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              className="hidden md:flex gap-2 border-emerald-500/20 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+              onClick={() => navigate('/patient-intake')}
+            >
+              <User className="h-4 w-4" />
+              Patient Intake
+            </Button>
             <div className="flex items-center gap-2 md:gap-6 bg-card border border-border px-2 md:px-4 py-2 rounded-lg shadow-sm">
               <div className="text-right flex items-center gap-2 md:block">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold hidden md:block">Avg Response Time</p>
