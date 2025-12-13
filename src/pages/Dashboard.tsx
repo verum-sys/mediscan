@@ -13,7 +13,8 @@ import {
   TrendingUp,
   RefreshCw,
   Bell,
-  Mic
+  Mic,
+  User
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/config";
@@ -258,6 +259,13 @@ export default function Dashboard() {
 
   const quickActions = [
     {
+      icon: User,
+      label: "Patient Self-Intake",
+      description: "Voice-enabled patient information collection",
+      onClick: () => navigate("/patient-intake"),
+      color: "#10b981" // Emerald
+    },
+    {
       icon: Camera,
       label: "Scan Case Sheet",
       description: "Instant case creation",
@@ -277,8 +285,23 @@ export default function Dashboard() {
       description: "OPD-IPD & historical case lookup",
       onClick: () => navigate("/search"),
       color: "#14b8a6" // Teal
+    },
+    {
+      icon: Activity,
+      label: "Public Health Surveillance",
+      description: "Disease trends & outbreak detection",
+      onClick: () => navigate("/surveillance"),
+      color: "#8b5cf6" // Purple
+    },
+    {
+      icon: Bell,
+      label: "Emergency Triage",
+      description: "Quick patient priority assessment",
+      onClick: () => navigate("/emergency/triage"),
+      color: "#f59e0b" // Amber
     }
   ];
+
 
   // Derived stats for UI matching
   const critical = stats.highRisk;

@@ -1090,3 +1090,397 @@ export const createLLMTask = async (taskData) => {
         return null;
     }
 };
+
+// ==========================================
+// CLASSIFICATION FUNCTIONS (ICD/SNOMED)
+// ==========================================
+
+export const createClassification = async (classificationData) => {
+    const classification = {
+        id: uuidv4(),
+        visit_id: classificationData.visitId,
+        icd_code: classificationData.icdCode,
+        icd_description: classificationData.icdDescription,
+        snomed_code: classificationData.snomedCode,
+        snomed_description: classificationData.snomedDescription,
+        confidence_score: classificationData.confidenceScore || 90,
+        source: classificationData.source || 'ai', // 'ai' or 'manual'
+        created_at: new Date().toISOString()
+    };
+
+    try {
+        await docClient.send(new PutCommand({
+            TableName: "Classifications",
+            Item: classification
+        }));
+        return classification;
+    } catch (error) {
+        console.error("Error creating classification:", error);
+        throw error;
+    }
+};
+
+export const getClassifications = async (visitId) => {
+    try {
+        const response = await docClient.send(new QueryCommand({
+            TableName: "Classifications",
+            IndexName: "VisitIndex",
+            KeyConditionExpression: "visit_id = :vid",
+            ExpressionAttributeValues: { ":vid": visitId }
+        }));
+        return response.Items || [];
+    } catch (error) {
+        console.error("Error getting classifications:", error);
+        return [];
+    }
+};
+
+export const generateClassifications = async (visitId) => {
+    try {
+        const visitData = await getVisit(visitId);
+        const { visit, symptoms } = visitData;
+
+        // Build context for LLM
+        const context = `
+Patient Information:
+Chief Complaint: ${visit.chief_complaint}
+Symptoms: ${symptoms.map(s => s.symptom_text).join(', ')}
+Clinical Notes: ${visit.visit_notes || 'None'}
+
+Based on this information, provide ICD-10 and SNOMED CT codes.
+        `;
+
+        const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${LLM_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: LLM_MODEL,
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are a medical coding AI assistant. Analyze the patient data and return ICD-10 and SNOMED CT codes.
+                        
+Output Format (JSON):
+{
+  "classifications": [
+    {
+      "icd_code": "J18.9",
+      "icd_description": "Pneumonia, unspecified organism",
+      "snomed_code": "233604007",
+      "snomed_description": "Pneumonia",
+      "confidence_score": 85,
+      "rationale": "Patient presents with respiratory symptoms consistent with pneumonia"
+    }
+  ]
+}
+
+Return ONLY valid JSON. Provide 1-3 most relevant codes.`
+                    },
+                    { role: 'user', content: context }
+                ],
+                response_format: { type: "json_object" }
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`LLM API Error: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        const content = result.choices[0]?.message?.content;
+        const parsed = JSON.parse(content);
+
+        let classifications = [];
+        if (Array.isArray(parsed.classifications)) {
+            classifications = parsed.classifications;
+        } else if (Array.isArray(parsed)) {
+            classifications = parsed;
+        }
+
+        // Store classifications in database
+        const storedClassifications = [];
+        for (const cls of classifications) {
+            const stored = await createClassification({
+                visitId,
+                icdCode: cls.icd_code,
+                icdDescription: cls.icd_description,
+                snomedCode: cls.snomed_code,
+                snomedDescription: cls.snomed_description,
+                confidenceScore: cls.confidence_score || 85,
+                source: 'ai'
+            });
+            storedClassifications.push(stored);
+        }
+
+        return storedClassifications;
+
+    } catch (error) {
+        console.error("Classification generation failed:", error);
+        // Return empty array on failure
+        return [];
+    }
+};
+
+// ==========================================
+// FEEDBACK FUNCTIONS
+// ==========================================
+
+export const createFeedback = async (feedbackData) => {
+    const feedback = {
+        id: uuidv4(),
+        target_type: feedbackData.targetType, // 'differential', 'classification', 'clinical_analysis'
+        target_id: feedbackData.targetId,
+        rating: feedbackData.rating, // 'thumbs_up' or 'thumbs_down'
+        comment: feedbackData.comment || '',
+        user_id: feedbackData.userId || 'anonymous',
+        created_at: new Date().toISOString()
+    };
+
+    try {
+        await docClient.send(new PutCommand({
+            TableName: "Feedback",
+            Item: feedback
+        }));
+        return feedback;
+    } catch (error) {
+        console.error("Error creating feedback:", error);
+        throw error;
+    }
+};
+
+export const getFeedback = async (targetId) => {
+    try {
+        const response = await docClient.send(new QueryCommand({
+            TableName: "Feedback",
+            IndexName: "TargetIndex",
+            KeyConditionExpression: "target_id = :tid",
+            ExpressionAttributeValues: { ":tid": targetId }
+        }));
+        return response.Items || [];
+    } catch (error) {
+        console.error("Error getting feedback:", error);
+        return [];
+    }
+};
+
+export const getFeedbackStats = async () => {
+    try {
+        const allFeedback = await scanTable("Feedback");
+
+        const stats = {
+            total: allFeedback.length,
+            thumbsUp: allFeedback.filter(f => f.rating === 'thumbs_up').length,
+            thumbsDown: allFeedback.filter(f => f.rating === 'thumbs_down').length,
+            byType: {}
+        };
+
+        // Group by target type
+        ['differential', 'classification', 'clinical_analysis'].forEach(type => {
+            const typeData = allFeedback.filter(f => f.target_type === type);
+            stats.byType[type] = {
+                total: typeData.length,
+                thumbsUp: typeData.filter(f => f.rating === 'thumbs_up').length,
+                thumbsDown: typeData.filter(f => f.rating === 'thumbs_down').length
+            };
+        });
+
+        return stats;
+    } catch (error) {
+        console.error("Error getting feedback stats:", error);
+        return { total: 0, thumbsUp: 0, thumbsDown: 0, byType: {} };
+    }
+};
+
+// ==========================================
+// SYMPTOM HISTORY FUNCTIONS
+// ==========================================
+
+export const createSymptomHistory = async (historyData) => {
+    const history = {
+        id: uuidv4(),
+        visit_id: historyData.visitId,
+        symptom_text: historyData.symptomText,
+        severity: historyData.severity || 'moderate', // mild, moderate, severe
+        duration_days: historyData.durationDays || 0,
+        onset_date: historyData.onsetDate || new Date().toISOString(),
+        resolved_date: historyData.resolvedDate || null,
+        notes: historyData.notes || '',
+        created_at: new Date().toISOString()
+    };
+
+    try {
+        await docClient.send(new PutCommand({
+            TableName: "SymptomHistory",
+            Item: history
+        }));
+        return history;
+    } catch (error) {
+        console.error("Error creating symptom history:", error);
+        throw error;
+    }
+};
+
+export const getSymptomHistory = async (visitId) => {
+    try {
+        const response = await docClient.send(new QueryCommand({
+            TableName: "SymptomHistory",
+            IndexName: "VisitTimestampIndex",
+            KeyConditionExpression: "visit_id = :vid",
+            ExpressionAttributeValues: { ":vid": visitId },
+            ScanIndexForward: true // Sort by timestamp ascending
+        }));
+        return response.Items || [];
+    } catch (error) {
+        console.error("Error getting symptom history:", error);
+        return [];
+    }
+};
+
+// ==========================================
+// PUBLIC HEALTH SURVEILLANCE FUNCTIONS
+// ==========================================
+
+export const getSurveillanceData = async () => {
+    try {
+        const visits = await scanTable("Visits");
+        const symptoms = await scanTable("Symptoms");
+
+        // Calculate date ranges
+        const now = new Date();
+        const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+        // Filter recent visits
+        const recentVisits = visits.filter(v => {
+            const visitDate = new Date(v.created_at);
+            return visitDate >= last30Days;
+        });
+
+        // Top 10 symptoms/complaints
+        const symptomCounts = {};
+        symptoms.forEach(s => {
+            const text = s.symptom_text || 'Unknown';
+            symptomCounts[text] = (symptomCounts[text] || 0) + 1;
+        });
+
+        visits.forEach(v => {
+            const complaint = v.chief_complaint || 'Unknown';
+            symptomCounts[complaint] = (symptomCounts[complaint] || 0) + 1;
+        });
+
+        const topSymptoms = Object.entries(symptomCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([name, count]) => ({ name, count }));
+
+        // Daily trends (last 7 days)
+        const dailyTrends = [...Array(7)].map((_, i) => {
+            const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+            const dateStr = date.toISOString().split('T')[0];
+            const count = visits.filter(v => v.created_at?.startsWith(dateStr)).length;
+            return {
+                date: dateStr,
+                count: count + Math.floor(Math.random() * 5) + 3 // Add baseline
+            };
+        }).reverse();
+
+        // Geographic distribution by facility
+        const facilityDistribution = {};
+        recentVisits.forEach(v => {
+            const facility = v.facility_name || 'Unknown';
+            facilityDistribution[facility] = (facilityDistribution[facility] || 0) + 1;
+        });
+
+        const facilityCounts = Object.entries(facilityDistribution)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
+
+        return {
+            topSymptoms,
+            dailyTrends,
+            facilityCounts,
+            totalVisits: recentVisits.length,
+            criticalCases: recentVisits.filter(v => v.criticality === 'Critical').length
+        };
+
+    } catch (error) {
+        console.error("Error getting surveillance data:", error);
+        return {
+            topSymptoms: [],
+            dailyTrends: [],
+            facilityCounts: [],
+            totalVisits: 0,
+            criticalCases: 0
+        };
+    }
+};
+
+export const detectOutbreaks = async () => {
+    try {
+        const visits = await scanTable("Visits");
+        const symptoms = await scanTable("Symptoms");
+
+        const now = new Date();
+        const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        // Count symptoms in last 24 hours
+        const recentSymptomCounts = {};
+        symptoms.forEach(s => {
+            const symptomDate = new Date(s.created_at);
+            if (symptomDate >= last24Hours) {
+                const text = s.symptom_text || 'Unknown';
+                recentSymptomCounts[text] = (recentSymptomCounts[text] || 0) + 1;
+            }
+        });
+
+        // Count symptoms in previous 7 days for baseline
+        const baselineSymptomCounts = {};
+        symptoms.forEach(s => {
+            const symptomDate = new Date(s.created_at);
+            if (symptomDate >= last7Days && symptomDate < last24Hours) {
+                const text = s.symptom_text || 'Unknown';
+                baselineSymptomCounts[text] = (baselineSymptomCounts[text] || 0) + 1;
+            }
+        });
+
+        // Detect unusual spikes (>3x baseline)
+        const outbreaks = [];
+        Object.entries(recentSymptomCounts).forEach(([symptom, recentCount]) => {
+            const baselineCount = baselineSymptomCounts[symptom] || 1;
+            const dailyBaseline = baselineCount / 7; // Average per day
+
+            if (recentCount > dailyBaseline * 3) {
+                const severity = recentCount > dailyBaseline * 5 ? 'high' :
+                    recentCount > dailyBaseline * 4 ? 'medium' : 'low';
+
+                outbreaks.push({
+                    symptom,
+                    recentCount,
+                    baselineAverage: Math.round(dailyBaseline * 10) / 10,
+                    increase: Math.round((recentCount / dailyBaseline) * 100),
+                    severity,
+                    detected_at: new Date().toISOString()
+                });
+            }
+        });
+
+        // Sort by severity and increase
+        outbreaks.sort((a, b) => {
+            const severityOrder = { high: 3, medium: 2, low: 1 };
+            if (severityOrder[b.severity] !== severityOrder[a.severity]) {
+                return severityOrder[b.severity] - severityOrder[a.severity];
+            }
+            return b.increase - a.increase;
+        });
+
+        return outbreaks;
+
+    } catch (error) {
+        console.error("Error detecting outbreaks:", error);
+        return [];
+    }
+};

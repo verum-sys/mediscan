@@ -20,6 +20,8 @@ import DDXTool from "./pages/DDXTool";
 import Triage from "./pages/Triage";
 import QueueList from "./pages/QueueList";
 import VoiceMode from "./pages/VoiceMode";
+import PatientIntake from "./pages/PatientIntake";
+import PublicHealthDashboard from "./pages/PublicHealthDashboard";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,8 @@ const App = () => (
               <Route path="/camera" element={<CameraOCR />} />
               <Route path="/search" element={<Search />} />
               <Route path="/voice" element={<VoiceMode />} />
+              <Route path="/patient-intake" element={<PatientIntake />} />
+              <Route path="/surveillance" element={<PublicHealthDashboard />} />
 
               <Route path="/visit/:id" element={<VisitDetail />} />
               <Route path="/ddx" element={<DDXTool />} />
