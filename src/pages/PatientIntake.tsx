@@ -82,11 +82,14 @@ export default function PatientIntake() {
     // Language state
     const [selectedLanguage, setSelectedLanguage] = useState('en-US');
 
+    // Generate PID once on mount
+    const [pid] = useState(`PID-${Math.floor(1000 + Math.random() * 9000)}`);
+
     // Chat state
     const [messages, setMessages] = useState<Message[]>([
         {
             role: 'assistant',
-            content: 'Hello! I\'m your AI health assistant. I\'ll help gather your information for the doctor. Let\'s start - what is your name?',
+            content: 'Hello! I\'m your AI health assistant. To begin, could you please tell me your Name, Age, Gender, and Residential Area?',
             timestamp: new Date()
         }
     ]);
@@ -115,6 +118,23 @@ export default function PatientIntake() {
     useEffect(() => {
         messagesRef.current = messages;
     }, [messages]);
+
+    // Auto-submit and redirect when interview is complete
+    useEffect(() => {
+        if (isComplete) {
+            toast({
+                title: "Interview Complete",
+                description: "Redirecting to your clinical report in 5 seconds...",
+                duration: 5000
+            });
+
+            const timer = setTimeout(() => {
+                submitToDoctor();
+            }, 5000); // 5 second delay to read the final message (Room #, PID)
+
+            return () => clearTimeout(timer);
+        }
+    }, [isComplete]);
 
     // Initialize speech recognition
     useEffect(() => {
@@ -253,7 +273,8 @@ export default function PatientIntake() {
                 body: JSON.stringify({
                     messages: updatedMessages, // Send full conversation including new message
                     currentData: patientData,
-                    language: selectedLanguage // Send selected language to backend
+                    language: selectedLanguage, // Send selected language to backend
+                    pid: pid // Send PID for System Prompt context
                 })
             });
 
@@ -308,7 +329,8 @@ export default function PatientIntake() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     patientData,
-                    conversation: messages
+                    conversation: messages,
+                    pid: pid // Send PID for Visit Creation
                 })
             });
 

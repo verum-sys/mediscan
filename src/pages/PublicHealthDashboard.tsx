@@ -138,7 +138,7 @@ export default function PublicHealthDashboard() {
                             Back
                         </Button>
                         <div>
-                            <h1 className="text-3xl font-bold">Public Health Surveillance</h1>
+                            <h1 className="text-3xl font-bold">Integrated Disease Surveillance Dashboard (IDSD)</h1>
                             <div className="flex items-center gap-2">
                                 <p className="text-muted-foreground">Real-time disease trends and outbreak detection</p>
                                 {lastUpdated && (

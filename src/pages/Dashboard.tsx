@@ -139,6 +139,54 @@ export default function Dashboard() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'critical' | 'moderate' | 'stable'>('all');
+  const [lastKnownVisitId, setLastKnownVisitId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Poll for new patients every 5 seconds
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(getApiUrl('/api/queue'));
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            const newest = data[0];
+            setQueue(data); // Keep queue updated real-time
+
+            if (lastKnownVisitId === null) {
+              // First load - just sync
+              setLastKnownVisitId(newest.id);
+            } else if (newest.id !== lastKnownVisitId) {
+              // NEW PATIENT DETECTED
+              setLastKnownVisitId(newest.id);
+
+              toast({
+                title: "🚨 New Patient Check-in!",
+                description: `${newest.visit_number} - ${newest.chief_complaint}`,
+                variant: "default",
+                className: "bg-emerald-500 text-white border-0",
+                action: (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => navigate(`/visit/${newest.id}`)}
+                  >
+                    View Case
+                  </Button>
+                ),
+                duration: 10000
+              });
+
+              // Play notification sound if possible? (Optional, skipping for now)
+            }
+          }
+        }
+      } catch (e) {
+        // silent fail
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [lastKnownVisitId, toast, navigate]);
 
   useEffect(() => {
     loadDashboardData();
@@ -172,6 +220,33 @@ export default function Dashboard() {
       if (queueRes && queueRes.ok) {
         const queueData = await queueRes.json();
         setQueue(queueData);
+
+        if (queueData.length > 0) {
+          const newest = queueData[0];
+          setLastKnownVisitId(newest.id); // Sync state
+
+          // Check if created recently (last 30 seconds) to show popup on navigation
+          const createdTime = new Date(newest.created_at).getTime();
+          const now = Date.now();
+          if (now - createdTime < 30000) {
+            toast({
+              title: "🚨 New Patient Check-in!",
+              description: `${newest.visit_number} - ${newest.chief_complaint}`,
+              variant: "default",
+              className: "bg-emerald-500 text-white border-0",
+              action: (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => navigate(`/visit/${newest.id}`)}
+                >
+                  View Case
+                </Button>
+              ),
+              duration: 10000
+            });
+          }
+        }
       }
     } catch (error) {
       console.log('Using mock data due to API error:', error);
@@ -288,7 +363,7 @@ export default function Dashboard() {
     },
     {
       icon: Activity,
-      label: "Public Health Surveillance",
+      label: "Integrated Disease Surveillance Dashboard (IDSD)",
       description: "Disease trends & outbreak detection",
       onClick: () => navigate("/surveillance"),
       color: "#8b5cf6" // Purple

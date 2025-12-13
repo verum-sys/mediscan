@@ -277,7 +277,7 @@ router.post('/process-voice', async (req, res) => {
 // Patient Intake - AI Chatbot Conversation
 router.post('/patient-intake', async (req, res) => {
     try {
-        const { messages, currentData, language = 'en-US' } = req.body;
+        const { messages, currentData, language = 'en-US', pid } = req.body; // Accept PID from frontend
 
         const llmApiKey = process.env.LLM_API_KEY;
         const llmBaseUrl = process.env.LLM_BASE_URL || 'https://api.cerebras.ai/v1';
@@ -319,31 +319,25 @@ router.post('/patient-intake', async (req, res) => {
 
         const selectedLanguageName = languageNames[language] || 'English';
 
-        // System prompt for patient intake
-        const systemPrompt = `You are a friendly AI health assistant conducting a patient intake interview. Your goal is to collect the following information:
+        // System prompt for patient intake with STRICT 4-Step Protocol
+        const systemPrompt = `You are a friendly AI health assistant conducting a patient intake interview. 
+        You MUST follow this STRICT Step-by-Step Protocol. Do not deviate.
 
-1. Patient's full name
-2. Age
-3. Gender
-4. Chief complaint (main reason for visit)
-5. Current symptoms (detailed description)
-6. Medical history (past illnesses, surgeries)
-7. Current medications
-8. Allergies
+        STEP 1: Ask for Patient's Name, Age, Gender, and Residential Area (All in the first message).
+        STEP 2: Ask "What seems to be the problem today?" (Chief Complaint).
+        STEP 3: Ask for In-depth details about the problem (Duration, Severity, specific characteristics - e.g., if cough, is it dry/wet?).
+        STEP 4: Ask about Medical History and Current Medications ("Any previous illness or medicines?").
+        STEP 5: CONCLUSION. 
+           - Inform the patient: "Your Unique ID is ${pid || 'PID-' + Math.floor(1000 + Math.random() * 9000)}. Please proceed to Room 2, Floor 3. Waiting time is approx 10 mins."
+           - Then say: "Thank you! I have all the information needed. You can now submit this to your doctor."
 
-IMPORTANT: Respond ONLY in ${selectedLanguageName}. All your questions and responses must be in this language.
+        IMPORTANT RULES:
+        - Analyze the "Current collected data" and conversation history to determine which STEP you are on.
+        - Move to the next step only after the current step is answered.
+        - Respond ONLY in ${selectedLanguageName}.
+        - Be warm and professional.
 
-Guidelines:
-- Ask ONE question at a time
-- Be warm, empathetic, and professional
-- Use simple, clear language in ${selectedLanguageName}
-- If patient mentions symptoms, ask follow-up questions (severity, duration, onset)
-- Extract and structure the information as you go
-- When you have all information, say "Thank you! I have all the information needed. You can now submit this to your doctor." (translated to ${selectedLanguageName})
-
-Current collected data: ${JSON.stringify(currentData)}
-
-Based on what's missing, ask the next appropriate question in ${selectedLanguageName}. Be conversational and natural.`;
+        Current collected data: ${JSON.stringify(currentData)}`;
 
         const aiResponse = await fetch(`${llmBaseUrl}/chat/completions`, {
             method: 'POST',
@@ -414,20 +408,57 @@ Based on what's missing, ask the next appropriate question in ${selectedLanguage
 // Submit Patient Intake to Doctor
 router.post('/patient-intake/submit', async (req, res) => {
     try {
-        const { patientData, conversation } = req.body;
+        const { patientData, conversation, pid } = req.body;
 
-        // Generate summary from conversation (EXCLUDING patient name for privacy)
-        const conversationText = conversation
-            .map(m => `${m.role === 'user' ? 'Patient' : 'AI'}: ${m.content}`)
-            .join('\n');
+        const llmApiKey = process.env.LLM_API_KEY;
+        const llmBaseUrl = process.env.LLM_BASE_URL || 'https://api.cerebras.ai/v1';
+        const llmModel = process.env.LLM_MODEL || 'llama-3.3-70b';
 
-        // Extract symptoms from conversation
+        // 1. Generate High-Quality Summary via LLM
+        let summaryText = `[${new Date().toLocaleDateString()}] Patient completed self-intake.`;
+
+        try {
+            // Construct context for summary
+            const conversationText = conversation.map(m => `${m.role}: ${m.content}`).join('\n');
+
+            const summaryResponse = await fetch(`${llmBaseUrl}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${llmApiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: llmModel,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: `Summarize the following medical intake conversation into EXACTLY 2 concise lines. 
+                            Include: Name, Age, Gender, Chief Complaint, Symptom specifics, and History/Meds. 
+                            Do NOT include filler words like "The patient mentions...". Start directly with the details.`
+                        },
+                        { role: 'user', content: conversationText }
+                    ]
+                })
+            });
+
+            if (summaryResponse.ok) {
+                const summaryData = await summaryResponse.json();
+                const aiSummary = summaryData.choices[0]?.message?.content;
+                if (aiSummary) {
+                    summaryText = `[${new Date().toLocaleDateString()}] ${aiSummary}`;
+                }
+            }
+        } catch (err) {
+            console.error("Summary generation failed:", err);
+            // Fallback to extraction
+        }
+
+        // 2. Extract Symptoms (Fallback/Additional)
         const symptoms = [];
         conversation.forEach(msg => {
             if (msg.role === 'user') {
                 const content = msg.content.toLowerCase();
-                // Simple symptom detection
-                const symptomKeywords = ['pain', 'fever', 'cough', 'headache', 'nausea', 'dizzy', 'fatigue', 'ache'];
+                const symptomKeywords = ['pain', 'fever', 'cough', 'headache', 'nausea', 'dizzy', 'fatigue', 'ache', 'rash', 'vomiting'];
                 symptomKeywords.forEach(keyword => {
                     if (content.includes(keyword) && !symptoms.includes(keyword)) {
                         symptoms.push(keyword);
@@ -436,17 +467,20 @@ router.post('/patient-intake/submit', async (req, res) => {
             }
         });
 
-        // Create visit WITHOUT patient name (privacy protection)
-        // Name is collected for conversation but NOT stored in clinical db
+        // 3. Leave Full Clinical Report Empty (User Request)
+        const visitNotes = "";
+
+        // 4. Create Visit
         const visit = await service.createVisit({
+            visit_number: pid, // Sync ID
             facilityName: 'Patient Self-Intake',
             department: 'General',
             providerName: 'Awaiting Assignment',
-            chiefComplaint: patientData.chiefComplaint || symptoms.join(', ') || 'Patient intake completed',
-            visitNotes: `Patient Self-Intake Summary (Name withheld for privacy):\n\nAge: ${patientData.age || 'Not provided'}\nGender: ${patientData.gender || 'Not provided'}\n\nConversation:\n${conversationText}`,
+            chiefComplaint: patientData.chiefComplaint || symptoms.join(', '),
+            visitNotes: visitNotes,
             sourceType: 'patient_intake',
-            confidenceScore: 90,
-            summary: `Patient completed self-intake. Chief complaint: ${patientData.chiefComplaint || symptoms.join(', ')}`
+            confidenceScore: 95,
+            summary: summaryText
         });
 
         // Add symptoms

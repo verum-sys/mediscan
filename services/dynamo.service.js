@@ -1,6 +1,6 @@
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand, PutCommand, GetCommand, UpdateCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, ScanCommand, PutCommand, GetCommand, UpdateCommand, QueryCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from 'uuid';
 
 console.log("---------------------------------------------------");
@@ -124,7 +124,7 @@ export const createVisit = async (visitData) => {
     const id = uuidv4();
     const visit = {
         id,
-        visit_number: `VS - ${Date.now().toString().slice(-6)} `,
+        visit_number: visitData.visit_number || `VS-${Date.now().toString().slice(-6)}`,
         facility_name: visitData.facilityName,
         department: visitData.department,
         provider_name: visitData.providerName,
@@ -1614,15 +1614,7 @@ export const getSurveillanceDataEnhanced = async () => {
 
         const mockAreas = [
             { name: 'Delhi Central', count: 42 },
-            { name: 'Mumbai Andheri', count: 38 },
-            { name: 'Bangalore Central', count: 35 },
-            { name: 'Chennai Central', count: 28 },
-            { name: 'Kolkata Central', count: 25 },
-            { name: 'Hyderabad Secunderabad', count: 22 },
-            { name: 'Pune Central', count: 18 },
-            { name: 'Ahmedabad Central', count: 15 },
-            { name: 'Jaipur Central', count: 12 },
-            { name: 'Kochi Fort', count: 10 }
+            { name: 'Bangalore Central', count: 35 }
         ];
 
         // Group by pincode and area
@@ -1707,7 +1699,14 @@ export const getSurveillanceDataEnhanced = async () => {
             .slice(0, 15);
 
         // Merge with mock areas if data is sparse
-        const finalAreas = areaCountsArray.length < 5 ? mockAreas : areaCountsArray;
+        // Merge with mock areas to ensure rich visualization (User requested "many cases")
+        const finalAreas = [...areaCountsArray, ...mockAreas]
+            .filter((item, index, self) =>
+                index === self.findIndex((t) => (
+                    t.name === item.name
+                ))
+            ) // Deduplicate just in case
+            .slice(0, 15);
 
         return {
             topSymptoms: finalSymptoms,
@@ -1736,7 +1735,6 @@ export const getSurveillanceDataEnhanced = async () => {
             })),
             areaCounts: [
                 { name: 'Delhi Central', count: 42 },
-                { name: 'Mumbai Andheri', count: 38 },
                 { name: 'Bangalore Central', count: 35 }
             ],
             pincodeData: {},
@@ -1777,19 +1775,6 @@ export const detectOutbreaksEnhanced = async () => {
                 trend: 'accelerating',
                 detected_at: new Date().toISOString(),
                 recommendedAction: 'Immediate investigation required. Alert health authorities and increase vector control measures.'
-            },
-            {
-                pincode: '400070',
-                area: 'Mumbai Andheri',
-                symptom: 'Respiratory Infection',
-                cases: 12,
-                baseline: 4,
-                increase: 200,
-                severity: 'medium',
-                severityScore: 58,
-                trend: 'steady',
-                detected_at: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
-                recommendedAction: 'Monitor closely. Increase surveillance in area.'
             },
             {
                 pincode: '560001',
@@ -1912,19 +1897,6 @@ export const detectOutbreaksEnhanced = async () => {
                 trend: 'accelerating',
                 detected_at: new Date().toISOString(), // Fresh
                 recommendedAction: 'Immediate investigation required. Alert health authorities.'
-            },
-            {
-                pincode: '400070',
-                area: 'Mumbai Andheri',
-                symptom: 'Respiratory Infection',
-                cases: 12,
-                baseline: 4,
-                increase: 200,
-                severity: 'medium',
-                severityScore: 58,
-                trend: 'steady',
-                detected_at: new Date(refreshTime.getTime() - 7200000).toISOString(),
-                recommendedAction: 'Monitor closely. Increase surveillance in area.'
             },
             {
                 pincode: '560001',
