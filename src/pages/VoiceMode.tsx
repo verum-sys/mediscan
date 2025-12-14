@@ -100,17 +100,28 @@ export default function VoiceMode() {
         <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-4 md:py-8">
             <div className="container mx-auto px-4 md:px-6 max-w-4xl">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-6">
-                    <Button variant="ghost" onClick={() => navigate('/')}>
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back
-                    </Button>
-                    <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                            <Mic className="h-6 w-6 text-primary" />
-                            <h1 className="text-2xl md:text-3xl font-bold">Voice Mode</h1>
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate('/')}
+                            className="bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm rounded-full h-10 w-10 shrink-0"
+                        >
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                        <span className="text-sm font-medium text-muted-foreground md:hidden">Back to Dashboard</span>
+                    </div>
+
+                    <div className="flex-1 mt-2 md:mt-0">
+                        <div className="flex items-center gap-3 mb-1">
+                            <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                                <Mic className="h-6 w-6" />
+                            </div>
+                            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Voice Mode</h1>
                         </div>
-                        <p className="text-sm md:text-base text-muted-foreground">Dictate patient symptoms and let AI analyze</p>
+                        <p className="text-sm md:text-base text-muted-foreground ml-1">Dictate patient symptoms and let AI analyze</p>
                     </div>
                 </div>
 
