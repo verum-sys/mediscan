@@ -37,7 +37,7 @@ export const generateDifferentials = async (visitId) => {
                 messages: [
                     {
                         role: 'system',
-                        content: `You are a clinical diagnostic AI.Analyze the patient data and return a JSON array of differential diagnoses.
+                        content: `You are a clinical diagnostic AI.Analyze the patient data and return a JSON array of differential diagnoses in ENGLISH.
                         Output Format: [{ "rank": 1, "condition_name": "...", "confidence_score": 90, "rationale": "...", "suggested_investigations": ["..."] }]`
                     },
                     { role: 'user', content: context }
@@ -144,10 +144,10 @@ Analyze the provided symptoms and generate ** ONE ** high - yield follow - up in
     IMPORTANT: You must include the word JSON in your response to satisfy the API requirement.
     Return ONLY valid JSON.
     {
-    "message": "Your question or closing statement",
-        "new_symptoms": ["symptom1", "symptom2"], // Extract ALL symptoms mentioned or confirmed in the user's latest response
-            "new_medications": ["med1", "med2"], // Extract ALL medications mentioned
-                "new_history": ["history1"] // Extract ALL relevant medical history
+    "message": "Your question or closing statement (in English, unless user requests otherwise)",
+        "new_symptoms": ["symptom1", "symptom2"], // Extract ALL symptoms mentioned (translate to ENGLISH)
+            "new_medications": ["med1", "med2"], // Extract ALL medications mentioned (translate to ENGLISH)
+                "new_history": ["history1"] // Extract ALL relevant medical history (translate to ENGLISH)
 }
 
 ### EXAMPLES
@@ -262,6 +262,7 @@ export const generateClinicalAnalysis = async (visitId) => {
                         
                         Infer missing details like Age/Sex from context if possible, or mark as "Unknown".
                         For 'medications', extract all drugs mentioned in the patient notes, medical history, or recommended in the treatment plan.
+                        IMPORTANT: Translate ALL output values to ENGLISH.
                         Return ONLY valid JSON.`
                     },
                     {

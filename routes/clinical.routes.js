@@ -209,7 +209,8 @@ router.post('/process-voice', async (req, res) => {
                         2. Assess criticality based on symptoms described
                         3. Determine appropriate department
                         4. Create a brief clinical summary
-                        5. Return ONLY JSON, no additional text`
+                        5. IMPORTANT: Translate ALL text fields (complaints, symptoms, summary) to ENGLISH, regardless of the input language.
+                        6. Return ONLY JSON, no additional text`
                     },
                     {
                         role: 'user',

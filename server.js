@@ -138,7 +138,8 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
                                 4. Ensure NO clinical information is lost in the formatted text.
                                 5. Do NOT include PII (Patient Name, ID, Phone).
                                 6. Generate a concise 'clinical_summary' (2-3 sentences) summarizing the patient's current condition, key findings, and history if available.
-                                7. Return ONLY JSON.`
+                                7. IMPORTANT: Translate ALL extracted text to ENGLISH, regardless of the input language.
+                                8. Return ONLY JSON.`
                             },
                             {
                                 role: 'user',

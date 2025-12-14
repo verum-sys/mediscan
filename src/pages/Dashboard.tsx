@@ -161,7 +161,7 @@ export default function Dashboard() {
 
               toast({
                 title: "🚨 New Patient Check-in!",
-                description: `${newest.visit_number} - ${newest.chief_complaint}`,
+                description: `${newest.visit_number || 'New Visit'} - ${newest.chief_complaint}`,
                 variant: "default",
                 className: "bg-emerald-500 text-white border-0",
                 action: (
@@ -231,7 +231,7 @@ export default function Dashboard() {
           if (now - createdTime < 30000) {
             toast({
               title: "🚨 New Patient Check-in!",
-              description: `${newest.visit_number} - ${newest.chief_complaint}`,
+              description: `${newest.visit_number || 'New Visit'} - ${newest.chief_complaint}`,
               variant: "default",
               className: "bg-emerald-500 text-white border-0",
               action: (
@@ -616,7 +616,7 @@ export default function Dashboard() {
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                          {item.visit_number.slice(0, 2)}
+                          {(item.visit_number || '').slice(0, 2)}
                         </div>
                         <div>
                           <p className="font-bold text-sm">{item.visit_number}</p>
@@ -670,7 +670,7 @@ export default function Dashboard() {
                       <td className="px-4 py-2 font-medium text-foreground">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px]">
-                            {item.visit_number.slice(0, 2)}
+                            {(item.visit_number || '').slice(0, 2)}
                           </div>
                           <span className="text-xs">{item.visit_number}</span>
                         </div>

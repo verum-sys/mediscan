@@ -135,9 +135,14 @@ export const getQueue = async () => {
         }));
 
         // Combine: Real visits first (sorted by time), then mock queue
-        const allVisits = [...realVisits, ...MOCK_QUEUE];
+        // Filter out mocks that already exist in database (realVisits)
+        const realIds = new Set(realVisits.map(v => v.id));
+        const filteredMocks = MOCK_QUEUE.filter(mock => !realIds.has(mock.id));
 
-        // Sort by created_at descending (latest first) - Real data will naturally appear on top
+        // Combine: Real visits first, then unique mocks
+        const allVisits = [...realVisits, ...filteredMocks];
+
+        // Sort by created_at descending (latest first)
         return allVisits.sort((a, b) => {
             const dateA = new Date(a.created_at || 0);
             const dateB = new Date(b.created_at || 0);
