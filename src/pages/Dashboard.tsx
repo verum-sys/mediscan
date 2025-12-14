@@ -498,13 +498,13 @@ export default function Dashboard() {
         {/* Section 3: Split Middle Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0 md:h-[280px]">
           {/* Left Column: Triage Snapshot */}
-          <Card className="bg-card border-border p-5 flex flex-col items-center justify-center h-full shadow-sm">
+          <Card className="bg-card border-border p-4 md:p-5 flex flex-col items-center justify-center h-full shadow-sm">
             <div className="w-full flex justify-between items-center mb-4 border-b border-border pb-3">
-              <h3 className="text-lg font-semibold text-foreground">Today's Triage Snapshot</h3>
-              <Badge variant="outline" className="text-xs h-6">Live Data</Badge>
+              <h3 className="text-base md:text-lg font-semibold text-foreground">Today's Triage Snapshot</h3>
+              <Badge variant="outline" className="text-[10px] md:text-xs h-5 md:h-6">Live Data</Badge>
             </div>
-            <div className="flex flex-row items-center gap-8 w-full justify-center h-full">
-              <div className="relative h-40 w-40 rounded-full shadow-xl ring-4 ring-background shrink-0" style={{
+            <div className="flex flex-col lg:flex-row items-center gap-6 w-full justify-center h-full">
+              <div className="relative h-32 w-32 md:h-40 md:w-40 rounded-full shadow-xl ring-4 ring-background shrink-0" style={{
                 background: `conic-gradient(
                                 #ef4444 0% ${critical / (stats.todayTotal || 1) * 100}%, 
                                 #f97316 ${critical / (stats.todayTotal || 1) * 100}% ${(critical + moderate) / (stats.todayTotal || 1) * 100}%, 
@@ -512,27 +512,40 @@ export default function Dashboard() {
                                 #eab308 ${(critical + moderate + stable) / (stats.todayTotal || 1) * 100}% 100%
                             )`
               }}>
-                <div className="absolute inset-4 bg-card rounded-full flex items-center justify-center flex-col shadow-inner">
-                  <span className="text-3xl font-bold text-foreground">{stats.todayTotal}</span>
-                  <span className="text-xs text-muted-foreground uppercase font-medium">Total</span>
+                <div className="absolute inset-3 md:inset-4 bg-card rounded-full flex items-center justify-center flex-col shadow-inner">
+                  <span className="text-2xl md:text-3xl font-bold text-foreground">{stats.todayTotal}</span>
+                  <span className="text-[10px] md:text-xs text-muted-foreground uppercase font-medium">Total</span>
                 </div>
               </div>
-              <div className="flex flex-col gap-3 text-sm min-w-[140px]">
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"></div><span className="text-muted-foreground font-medium">Critical</span></div>
-                  <span className="font-bold text-foreground text-base">{critical}</span>
+
+              <div className="grid grid-cols-2 lg:flex lg:flex-col gap-x-4 gap-y-3 w-full lg:w-auto lg:min-w-[140px]">
+                <div className="flex items-center justify-between gap-2 p-1.5 rounded-md hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm shrink-0"></div>
+                    <span className="text-muted-foreground font-medium text-xs md:text-sm">Critical</span>
+                  </div>
+                  <span className="font-bold text-foreground text-sm md:text-base">{critical}</span>
                 </div>
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-orange-500 rounded-full shadow-sm"></div><span className="text-muted-foreground font-medium">Moderate</span></div>
-                  <span className="font-bold text-foreground text-base">{moderate}</span>
+                <div className="flex items-center justify-between gap-2 p-1.5 rounded-md hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 bg-orange-500 rounded-full shadow-sm shrink-0"></div>
+                    <span className="text-muted-foreground font-medium text-xs md:text-sm">Moderate</span>
+                  </div>
+                  <span className="font-bold text-foreground text-sm md:text-base">{moderate}</span>
                 </div>
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-blue-500 rounded-full shadow-sm"></div><span className="text-muted-foreground font-medium">Stable</span></div>
-                  <span className="font-bold text-foreground text-base">{stable}</span>
+                <div className="flex items-center justify-between gap-2 p-1.5 rounded-md hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 bg-blue-500 rounded-full shadow-sm shrink-0"></div>
+                    <span className="text-muted-foreground font-medium text-xs md:text-sm">Stable</span>
+                  </div>
+                  <span className="font-bold text-foreground text-sm md:text-base">{stable}</span>
                 </div>
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-yellow-500 rounded-full shadow-sm"></div><span className="text-muted-foreground font-medium">Pending</span></div>
-                  <span className="font-bold text-foreground text-base">{incomplete}</span>
+                <div className="flex items-center justify-between gap-2 p-1.5 rounded-md hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 bg-yellow-500 rounded-full shadow-sm shrink-0"></div>
+                    <span className="text-muted-foreground font-medium text-xs md:text-sm">Pending</span>
+                  </div>
+                  <span className="font-bold text-foreground text-sm md:text-base">{incomplete}</span>
                 </div>
               </div>
             </div>
