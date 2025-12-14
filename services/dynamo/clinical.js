@@ -261,7 +261,7 @@ export const generateClinicalAnalysis = async (visitId) => {
                         3. investigative_suggestions: [{ Test_Name, Type (Essential/Optional), Ruled_Out_Test, Confidence_Score }]
                         
                         Infer missing details like Age/Sex from context if possible, or mark as "Unknown".
-                        For 'medications', extract drugs mentioned in the treatment plan.
+                        For 'medications', extract all drugs mentioned in the patient notes, medical history, or recommended in the treatment plan.
                         Return ONLY valid JSON.`
                     },
                     {

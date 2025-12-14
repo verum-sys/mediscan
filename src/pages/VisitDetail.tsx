@@ -973,12 +973,18 @@ export default function VisitDetail() {
                             </div>
 
                             {/* Medication Recommendations */}
-                            {clinicalAnalysis.medications && clinicalAnalysis.medications.length > 0 && (
-                                <div>
-                                    <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
-                                        <Bandage className="w-5 h-5 text-primary" />
-                                        Medication Plan & Inventory
-                                    </h3>
+                            {/* Medication Recommendations */}
+                            <div>
+                                <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                                    <Bandage className="w-5 h-5 text-primary" />
+                                    Medication Plan & Inventory
+                                </h3>
+
+                                {(!clinicalAnalysis.medications || clinicalAnalysis.medications.length === 0) ? (
+                                    <div className="p-6 border rounded-lg bg-muted/10 border-dashed text-center">
+                                        <p className="text-muted-foreground text-sm">No specific medications recommended in this analysis.</p>
+                                    </div>
+                                ) : (
                                     <div className="overflow-x-auto rounded-lg border shadow-sm">
                                         <table className="w-full text-sm text-left">
                                             <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
@@ -1034,8 +1040,8 @@ export default function VisitDetail() {
                                             </tbody>
                                         </table>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
 
                             {/* Investigative Suggestions Table */}
                             <div>
