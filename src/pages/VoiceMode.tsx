@@ -97,8 +97,8 @@ export default function VoiceMode() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-8">
-            <div className="container mx-auto px-6 max-w-4xl">
+        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-4 md:py-8">
+            <div className="container mx-auto px-4 md:px-6 max-w-4xl">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-6">
                     <Button variant="ghost" onClick={() => navigate('/')}>
@@ -108,14 +108,14 @@ export default function VoiceMode() {
                     <div className="flex-1">
                         <div className="flex items-center gap-2">
                             <Mic className="h-6 w-6 text-primary" />
-                            <h1 className="text-3xl font-bold">Voice Mode</h1>
+                            <h1 className="text-2xl md:text-3xl font-bold">Voice Mode</h1>
                         </div>
-                        <p className="text-muted-foreground">Dictate patient symptoms and let AI analyze</p>
+                        <p className="text-sm md:text-base text-muted-foreground">Dictate patient symptoms and let AI analyze</p>
                     </div>
                 </div>
 
                 {/* Voice Input Card */}
-                <Card className="glass-card p-6 mb-6">
+                <Card className="glass-card p-4 md:p-6 mb-6">
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <h2 className="text-lg font-semibold">Patient Symptoms</h2>
@@ -130,7 +130,7 @@ export default function VoiceMode() {
                                 placeholder="Click the microphone to start speaking, or type here manually..."
                                 value={transcript}
                                 onChange={(e) => setTranscript(e.target.value)}
-                                className="min-h-[200px] pr-14 text-base"
+                                className="min-h-[150px] md:min-h-[200px] pr-14 text-base"
                                 disabled={isProcessing}
                             />
                             <div className="absolute bottom-3 right-3">
@@ -172,7 +172,7 @@ export default function VoiceMode() {
                 </Card>
 
                 {/* Instructions */}
-                <Card className="glass-card p-6 bg-primary/5 border-primary/20">
+                <Card className="glass-card p-4 md:p-6 bg-primary/5 border-primary/20">
                     <h3 className="font-semibold mb-3 flex items-center gap-2">
                         <Mic className="h-4 w-4" />
                         How to Use Voice Mode
@@ -202,7 +202,7 @@ export default function VoiceMode() {
                 </Card>
 
                 {/* Example Prompts */}
-                <Card className="glass-card p-6 mt-6">
+                <Card className="glass-card p-4 md:p-6 mt-6 pb-24 md:pb-6">
                     <h3 className="font-semibold mb-3">Example Voice Inputs</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {[
