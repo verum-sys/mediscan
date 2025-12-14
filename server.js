@@ -4,6 +4,7 @@ import cors from 'cors';
 import multer from 'multer';
 import dotenv from 'dotenv';
 import clinicalRoutes from './routes/clinical.routes.js';
+import intakeRoutes from './routes/intake.routes.js';
 import { createVisit, updateVisit, addSymptoms, addMedications, createAuditLog, createDocument, createLLMTask } from './services/dynamo.service.js';
 
 dotenv.config();
@@ -20,6 +21,7 @@ app.use(cors({
 app.use(express.json());
 
 // Register clinical API routes
+app.use('/api', intakeRoutes); // Mount intake routes first to override legacy
 app.use('/api', clinicalRoutes);
 
 // Global error handler
