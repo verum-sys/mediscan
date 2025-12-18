@@ -17,7 +17,7 @@ export function Sidebar() {
     const location = useLocation();
 
     const menuItems = [
-        { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+        { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
         { icon: Siren, label: "Triage & Alerts", path: "/emergency/triage" },
         { icon: Users, label: "Patients", path: "/patients" }, // Note: Check if this route exists
         { icon: Upload, label: "Scan & Upload", path: "/camera" },

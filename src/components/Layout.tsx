@@ -9,9 +9,9 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
-  const isPatientIntake = location.pathname === '/patient-intake';
+  const isStandalonePage = location.pathname === '/patient-intake' || location.pathname === '/';
 
-  if (isPatientIntake) {
+  if (isStandalonePage) {
     return (
       <div className="min-h-screen bg-background text-foreground">
         {children}
