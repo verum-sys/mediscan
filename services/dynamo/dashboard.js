@@ -1,5 +1,6 @@
 
 import { scanTable } from './client.js';
+import { getMockQueueData } from './visits.js';
 
 export const getStats = async () => {
     try {
@@ -56,75 +57,8 @@ export const getQueue = async () => {
         const visits = await scanTable("Visits");
 
         // Mock Queue Data for impressive dashboard
-        const MOCK_QUEUE = [
-            {
-                id: 'mock-q-1',
-                visit_number: 'OPD-2024-892',
-                chief_complaint: 'Severe chest pain radiating to left arm',
-                facility_name: 'City General Hospital',
-                department: 'Cardiology',
-                status: 'in_progress',
-                confidence_score: 92,
-                created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
-                has_high_risk: true,
-                needs_follow_up: false,
-                has_incomplete_data: false,
-                criticality: 'Critical'
-            },
-            {
-                id: 'mock-q-2',
-                visit_number: 'OPD-2024-891',
-                chief_complaint: 'Persistent dry cough and fever',
-                facility_name: 'City General Hospital',
-                department: 'Pulmonology',
-                status: 'follow_up',
-                confidence_score: 88,
-                created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 mins ago
-                has_high_risk: false,
-                needs_follow_up: true,
-                has_incomplete_data: false
-            },
-            {
-                id: 'mock-q-3',
-                visit_number: 'OPD-2024-890',
-                chief_complaint: 'Migraine with aura',
-                facility_name: 'City General Hospital',
-                department: 'Neurology',
-                status: 'waiting',
-                confidence_score: 75,
-                created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-                has_high_risk: false,
-                needs_follow_up: false,
-                has_incomplete_data: false
-            },
-            {
-                id: 'mock-q-4',
-                visit_number: 'OPD-2024-889',
-                chief_complaint: 'Abdominal pain, lower right quadrant',
-                facility_name: 'City General Hospital',
-                department: 'Emergency',
-                status: 'in_progress',
-                confidence_score: 65,
-                created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 hours ago
-                has_high_risk: true,
-                needs_follow_up: false,
-                has_incomplete_data: false,
-                criticality: 'Critical'
-            },
-            {
-                id: 'mock-q-5',
-                visit_number: 'OPD-2024-888',
-                chief_complaint: 'Routine diabetic checkup',
-                facility_name: 'City General Hospital',
-                department: 'Endocrinology',
-                status: 'completed',
-                confidence_score: 95,
-                created_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(), // 4 hours ago
-                has_high_risk: false,
-                needs_follow_up: false,
-                has_incomplete_data: false
-            }
-        ];
+        // Mock Queue Data for impressive dashboard (Imported from visits to sync logic)
+        const MOCK_QUEUE = getMockQueueData();
 
         // Map real visits with proper flags
         const realVisits = visits
@@ -140,6 +74,10 @@ export const getQueue = async () => {
         // Filter out mocks that already exist in database (realVisits)
         const realIds = new Set(realVisits.map(v => v.id));
         const filteredMocks = MOCK_QUEUE.filter(mock => !realIds.has(mock.id));
+
+        console.log("[DEBUG] getQueue - Mocks:", MOCK_QUEUE ? MOCK_QUEUE.length : 'undefined');
+        console.log("[DEBUG] getQueue - Real:", realVisits.length);
+        console.log("[DEBUG] getQueue - Filtered Mocks:", filteredMocks.length);
 
         // Combine: Real visits first, then unique mocks
         const allVisits = [...realVisits, ...filteredMocks];

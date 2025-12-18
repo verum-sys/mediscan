@@ -1,10 +1,56 @@
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { UserCog, Stethoscope, ChevronRight, Activity } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
+import { speakText } from "@/services/cartesia";
 
 export default function Landing() {
     const navigate = useNavigate();
+    const hasSpoken = useRef(false);
+
+    useEffect(() => {
+        // Prevent double-play in StrictMode or re-mounts
+        if (hasSpoken.current) return;
+
+        const audio = new Audio("/cartesia_audio_2025-12-19T01_51_31+05_30.wav");
+        let playAttempted = false;
+
+        const playAudio = async () => {
+            if (playAttempted) return;
+            playAttempted = true;
+            hasSpoken.current = true;
+
+            try {
+                await audio.play();
+            } catch (err) {
+                console.log("Autoplay prevented. Waiting for interaction.");
+                // If blocked, just leave it; the fallback below handles it.
+            }
+        };
+
+        playAudio();
+
+        const onInteraction = () => {
+            // If paused (meaning play failed or finished), try again
+            if (audio.paused) {
+                audio.play().catch(() => { });
+            }
+        };
+
+        // One-time interaction listeners to unblock audio
+        ['click', 'mousemove', 'keydown', 'touchstart'].forEach(event =>
+            window.addEventListener(event, onInteraction, { once: true })
+        );
+
+        return () => {
+            audio.pause();
+            audio.currentTime = 0;
+            ['click', 'mousemove', 'keydown', 'touchstart'].forEach(event =>
+                window.removeEventListener(event, onInteraction)
+            );
+        };
+    }, []);
 
     return (
         <div

@@ -1,5 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react';
+import { speakText } from "@/services/cartesia";
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -179,64 +180,39 @@ export default function PatientIntake() {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Enhanced speak function with fallback
-    const speak = (text: string, languageOverride?: string, fallbackText?: string) => {
+    // Enhanced speak function using Cartesia API
+    const speak = async (text: string, languageOverride?: string, fallbackText?: string) => {
         if (!voiceEnabled) return;
 
-        let targetLang = languageOverride || selectedLanguage;
+        // Determine message
         let textToSpeak = text;
 
-        const voices = window.speechSynthesis.getVoices();
-        // Try strict match first, then loose match (e.g. 'bn-IN' matches 'bn')
-        let languageVoice = voices.find(v => v.lang === targetLang) ||
-            voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+        // Cancel any browser speech if happening (legacy cleanup)
+        window.speechSynthesis.cancel();
 
-        // Debug
-        // console.log(`Speaking in ${targetLang}. Found voice: ${languageVoice?.name}`);
+        setIsSpeaking(true);
+        console.log("Generating audio for:", text);
 
-        if (!languageVoice) {
-            // Special handling for Indian languages falling back to Hindi if available (experimental)
-            // But usually safer to fallback to English or silent.
+        try {
+            // Use Cartesia API for high quality Indian voice
+            // Map BCP-47 to Cartesia/ISO language code
+            const langCode = (languageOverride || selectedLanguage).split('-')[0];
+            const audio = await speakText(textToSpeak, langCode);
 
-            if (fallbackText) {
-                // We have a fallback (e.g. English greeting)
-                console.warn(`Voice for ${targetLang} not available. Fallback to English.`);
-                textToSpeak = fallbackText;
-                targetLang = 'en-US';
-                languageVoice = voices.find(v => v.lang.startsWith('en'));
-
-                toast({
-                    title: "Language Voice Missing",
-                    description: "Native voice not installed. Speaking in English.",
-                    variant: "default"
+            if (audio) {
+                audio.onended = () => setIsSpeaking(false);
+                audio.play().catch(e => {
+                    console.error("Audio play error", e);
+                    setIsSpeaking(false);
                 });
             } else {
-                // No fallback available (e.g. dynamic chat response)
-                // Do not speak to avoid gibberish
-                toast({
-                    title: "Voice Not Available",
-                    description: `Your device does not support TTS for ${targetLang}.`,
-                    variant: "destructive"
-                });
-                return;
+                console.error("Cartesia failed to generate audio");
+                setIsSpeaking(false);
             }
+        } catch (error) {
+            console.error("Speak error:", error);
+            setIsSpeaking(false);
         }
-
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(textToSpeak);
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        utterance.volume = 1;
-        utterance.lang = targetLang;
-
-        if (languageVoice) utterance.voice = languageVoice;
-
-        utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
-
-        synthRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
     };
 
     const toggleListening = () => {
@@ -312,8 +288,12 @@ export default function PatientIntake() {
                 setMessages([...updatedMessages, assistantMessage]);
                 // Speak response (using current state lang). No fallback for dynamic content yet.
                 speak(data.response);
-                if (data.patientData) setPatientData(data.patientData);
-                if (data.isComplete) setIsComplete(true);
+                // Handle snake_case backend response
+                const pData = data.patientData || data.extracted_data;
+                const complete = data.isComplete || data.is_complete;
+
+                if (pData) setPatientData(pData);
+                if (complete) setIsComplete(true);
             } else {
                 throw new Error('Failed to process message');
             }
@@ -418,7 +398,7 @@ export default function PatientIntake() {
                             <FileText className="h-4 w-4 mr-2" />
                             Summarize
                         </Button>
-                        <Button variant="ghost" onClick={() => navigate('/')}>
+                        <Button variant="ghost" onClick={() => navigate('/dashboard')}>
                             <ArrowLeft className="h-4 w-4 mr-2" />
                             Exit
                         </Button>

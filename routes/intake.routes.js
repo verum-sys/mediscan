@@ -233,6 +233,8 @@ router.post('/patient-intake/submit', async (req, res) => {
 
         // 2. Create Visit Record
         const visitData = {
+            id: pid,
+            visit_number: pid,
             patientName: patientData.name || 'Unknown',
             age: patientData.age || 0,
             gender: patientData.gender || 'Unknown',

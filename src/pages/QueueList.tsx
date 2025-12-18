@@ -199,9 +199,9 @@ export default function QueueList() {
     };
 
     const filteredQueue = queue.filter(item =>
-        item.visit_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.chief_complaint.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.department.toLowerCase().includes(searchTerm.toLowerCase())
+        (item.visit_number || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.chief_complaint || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.department || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -210,7 +210,7 @@ export default function QueueList() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6 md:mb-8">
                     <div className="flex items-center justify-between w-full md:w-auto">
-                        <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="-ml-3 md:ml-0">
+                        <Button variant="ghost" size="sm" onClick={() => navigate("/logs")} className="-ml-3 md:ml-0">
                             <ArrowLeft className="h-4 w-4 mr-2" />
                             Back
                         </Button>
@@ -280,7 +280,7 @@ export default function QueueList() {
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div className="flex items-start gap-4 w-full md:w-auto">
                                         <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-muted flex items-center justify-center font-bold text-xs shrink-0">
-                                            {item.visit_number.split('-').pop()}
+                                            {(item.visit_number || 'VS-000').split('-').pop()}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex flex-wrap items-center gap-2 mb-1">
