@@ -16,7 +16,7 @@ export default function Logs() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const [stats, setStats] = useState({ highRisk: 0, incompleteData: 0, followUp: 0, opdToIpdCount: 0 });
+  const [stats, setStats] = useState({ todayTotal: 0, highRisk: 0, incompleteData: 0, followUp: 0, opdToIpdCount: 0 });
   const [analytics, setAnalytics] = useState<any>({ monthly: [], yearly: [], daily: [], doctor: [] });
 
   useEffect(() => {
@@ -118,6 +118,8 @@ export default function Logs() {
     </Card>
   );
 
+  const stableCases = Math.max(0, stats.todayTotal - (stats.highRisk + stats.incompleteData + stats.followUp));
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-12">
       <div className="container mx-auto px-6 max-w-7xl">
@@ -140,11 +142,14 @@ export default function Logs() {
         </div>
 
         {/* Moved Stats from Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="glass-card p-6 border-red-500/20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <Card
+            className="glass-card p-6 border-red-500/20 cursor-pointer hover:bg-red-500/5 transition-colors"
+            onClick={() => navigate('/queue/critical')}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">High Risk</p>
+                <p className="text-sm text-muted-foreground mb-1">Critical Cases</p>
                 <h3 className="text-3xl font-bold text-red-500">{stats.highRisk}</h3>
               </div>
               <div className="h-12 w-12 rounded-full bg-red-500/10 flex items-center justify-center">
@@ -156,7 +161,10 @@ export default function Logs() {
             </div>
           </Card>
 
-          <Card className="glass-card p-6 border-yellow-500/20">
+          <Card
+            className="glass-card p-6 border-yellow-500/20 cursor-pointer hover:bg-yellow-500/5 transition-colors"
+            onClick={() => navigate('/queue/incomplete')}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Incomplete Data</p>
@@ -173,11 +181,11 @@ export default function Logs() {
 
           <Card
             className="glass-card p-6 border-purple-500/20 cursor-pointer hover:bg-purple-500/5 transition-colors"
-            onClick={() => navigate('/queue/followup')}
+            onClick={() => navigate('/queue/moderate')}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Follow-up</p>
+                <p className="text-sm text-muted-foreground mb-1">Moderate Risk</p>
                 <h3 className="text-3xl font-bold text-purple-500">{stats.followUp}</h3>
               </div>
               <div className="h-12 w-12 rounded-full bg-purple-500/10 flex items-center justify-center">
@@ -186,6 +194,24 @@ export default function Logs() {
             </div>
             <div className="mt-4 flex items-center text-sm text-purple-500">
               <span>View List →</span>
+            </div>
+          </Card>
+
+          <Card
+            className="glass-card p-6 border-blue-500/20 cursor-pointer hover:bg-blue-500/5 transition-colors"
+            onClick={() => navigate('/queue/stable')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Stable Cases</p>
+                <h3 className="text-3xl font-bold text-blue-500">{stableCases}</h3>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-blue-500" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm text-blue-500">
+              <span>Safe</span>
             </div>
           </Card>
 

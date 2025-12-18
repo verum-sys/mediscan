@@ -342,25 +342,11 @@ export default function Dashboard() {
       color: "#795548" // Brown
     },
     {
-      icon: Stethoscope,
-      label: "Start Differential Diagnosis",
-      description: "Symptom -> Top 5 DDX with reasoning",
-      onClick: () => navigate("/ddx"),
-      color: "#6366f1" // Indigo
-    },
-    {
       icon: Search,
       label: "Search / Retrieve Patient",
       description: "OPD-IPD & historical case lookup",
       onClick: () => navigate("/search"),
       color: "#14b8a6" // Teal
-    },
-    {
-      icon: Activity,
-      label: "Integrated Disease Surveillance Dashboard (IDSD)",
-      description: "Disease trends & outbreak detection",
-      onClick: () => navigate("/surveillance"),
-      color: "#8b5cf6" // Purple
     },
     {
       icon: Bell,
@@ -378,13 +364,32 @@ export default function Dashboard() {
   const incomplete = stats.incompleteData;
   const stable = Math.max(0, stats.todayTotal - (critical + moderate + incomplete));
 
+  /* Live Queue Filter Logic */
   const filteredQueue = queue.filter(item => {
+    if (item.status === 'accepted') return false;
     if (filter === 'all') return true;
     if (filter === 'critical') return item.has_high_risk || item.criticality === 'Critical';
     if (filter === 'moderate') return item.needs_follow_up;
     if (filter === 'stable') return !item.has_high_risk && !item.needs_follow_up;
     return true;
   }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const handleAccept = async (e: React.MouseEvent, item: QueueItem) => {
+    e.stopPropagation();
+    try {
+      setQueue(prev => prev.filter(q => q.id !== item.id));
+      await fetch(getApiUrl(`/api/visits/${item.id}`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'accepted' })
+      });
+      toast({ title: "Patient Accepted", description: "Opening case file...", className: "bg-emerald-500 text-white border-0" });
+      navigate(`/visit/${item.id}`);
+    } catch (err) {
+      console.error("Error accepting patient:", err);
+      toast({ title: "Error", description: "Failed to accept patient", variant: "destructive" });
+    }
+  };
 
   return (
     <div className="min-h-screen overflow-auto bg-background text-foreground font-sans transition-colors duration-300 flex flex-col">
@@ -429,70 +434,31 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Section 2: Status Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-          <Card className="bg-[#ef4444] border-none p-3 hover:shadow-md transition-all">
-            <div className="flex justify-between items-start mb-1">
-              <h3 className="text-white font-semibold text-xs">Critical Cases</h3>
-              <AlertTriangle className="w-3.5 h-3.5 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-white mb-1.5">{critical}</div>
-            <Button
-              variant="secondary"
-              className="w-full bg-white hover:bg-white/90 text-[#ef4444] text-[10px] h-5 border-0"
-              onClick={() => navigate('/queue/critical')}
+
+
+        {/* Section 2: Action Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 shrink-0">
+          {quickActions.map((action, index) => (
+            <Card
+              key={index}
+              className="border-none p-4 cursor-pointer hover:scale-[1.02] hover:shadow-lg transition-all duration-300 group relative overflow-hidden"
+              style={{ backgroundColor: action.color }}
+              onClick={action.onClick}
             >
-              View Critical Queue
-            </Button>
-          </Card>
-
-          <Card className="bg-[#f97316] border-none p-3 hover:shadow-md transition-all">
-            <div className="flex justify-between items-start mb-1">
-              <h3 className="text-white font-semibold text-xs">Moderate Risk</h3>
-              <Activity className="w-3.5 h-3.5 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-white mb-1.5">{moderate}</div>
-            <Button
-              variant="secondary"
-              className="w-full bg-white hover:bg-white/90 text-[#f97316] text-[10px] h-5 border-0"
-              onClick={() => navigate('/queue/moderate')}
-            >
-              Review Cases
-            </Button>
-          </Card>
-
-          <Card className="bg-[#3b82f6] border-none p-3 hover:shadow-md transition-all">
-            <div className="flex justify-between items-start mb-1">
-              <h3 className="text-white font-semibold text-xs">Stable / Low Risk</h3>
-              <TrendingUp className="w-3.5 h-3.5 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-white mb-1.5">{stable}</div>
-            <Button
-              variant="secondary"
-              className="w-full bg-white hover:bg-white/90 text-[#3b82f6] text-[10px] h-5 border-0"
-              onClick={() => navigate('/queue/stable')}
-            >
-              View Queue
-            </Button>
-          </Card>
-
-
-          <Card className="bg-[#eab308] border-none p-3 hover:shadow-md transition-all">
-            <div className="flex justify-between items-start mb-1">
-              <h3 className="text-white font-semibold text-xs">Incomplete Data</h3>
-              <Clock className="w-3.5 h-3.5 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-white mb-1.5">{incomplete}</div>
-            <Button
-              variant="secondary"
-              className="w-full bg-white hover:bg-white/90 text-[#eab308] text-[10px] h-5 border-0"
-              onClick={() => navigate('/queue/incomplete')}
-            >
-              Fix Now
-            </Button>
-          </Card>
-
-
+              <div className="flex flex-col h-full justify-between relative z-10 gap-2">
+                <div className="flex items-start justify-between">
+                  <div className="p-2 rounded-lg bg-white shadow-sm">
+                    <action.icon className="w-5 h-5" style={{ color: action.color }} />
+                  </div>
+                  <Badge variant="secondary" className="bg-white/20 backdrop-blur-md text-white border-0 text-[10px] h-5">Action</Badge>
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-white mb-0.5">{action.label}</h3>
+                  <p className="text-xs text-white/80 font-medium line-clamp-1">{action.description}</p>
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
 
         {/* Section 3: Split Middle Section */}
@@ -559,37 +525,14 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Section 4: Action Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 shrink-0">
-          {quickActions.map((action, index) => (
-            <Card
-              key={index}
-              className="border-none p-4 cursor-pointer hover:scale-[1.02] hover:shadow-lg transition-all duration-300 group relative overflow-hidden"
-              style={{ backgroundColor: action.color }}
-              onClick={action.onClick}
-            >
-              <div className="flex flex-col h-full justify-between relative z-10 gap-2">
-                <div className="flex items-start justify-between">
-                  <div className="p-2 rounded-lg bg-white shadow-sm">
-                    <action.icon className="w-5 h-5" style={{ color: action.color }} />
-                  </div>
-                  <Badge variant="secondary" className="bg-white/20 backdrop-blur-md text-white border-0 text-[10px] h-5">Action</Badge>
-                </div>
-                <div>
-                  <h3 className="font-bold text-base text-white mb-0.5">{action.label}</h3>
-                  <p className="text-xs text-white/80 font-medium line-clamp-1">{action.description}</p>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+
 
         {/* Section 5: Patient Table */}
         <div className="flex-1 min-h-0 flex flex-col gap-2">
           <div className="flex items-center justify-between shrink-0">
             <div>
               <h2 className="text-lg font-bold text-foreground">
-                {filter === 'all' ? 'Continue where you left off' : `${filter.charAt(0).toUpperCase() + filter.slice(1)} Cases Queue`}
+                {filter === 'all' ? 'Live Patient Queue' : `${filter.charAt(0).toUpperCase() + filter.slice(1)} Cases Queue`}
               </h2>
             </div>
             <Button variant="outline" size="sm" onClick={loadDashboardData} className="gap-2 h-7 text-xs">
@@ -644,10 +587,35 @@ export default function Dashboard() {
                         <span className="text-[10px] text-muted-foreground">AI Confidence</span>
                         <span className={`text-xs font-bold ${item.confidence_score >= 80 ? 'text-emerald-500' : 'text-yellow-500'}`}>{item.confidence_score}%</span>
                       </div>
-                      <Button size="sm" className="h-7 text-xs" onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/visit/${item.id}`);
-                      }}>Open Case</Button>
+
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 text-xs bg-red-100 text-red-700 hover:bg-red-200 border-0 shadow-none"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (confirm('Are you sure you want to decline this patient?')) {
+                              try {
+                                await fetch(getApiUrl(`/api/visits/${item.id}`), { method: 'DELETE' });
+                                setQueue(prev => prev.filter(q => q.id !== item.id));
+                                toast({ title: "Patient declined", variant: "default" });
+                              } catch (err) {
+                                toast({ title: "Failed to decline", variant: "destructive" });
+                              }
+                            }
+                          }}
+                        >
+                          Decline
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                          onClick={(e) => handleAccept(e, item)}
+                        >
+                          Accept
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -703,13 +671,34 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
-                          onClick={() => navigate(`/visit/${item.id}`)}
-                        >
-                          Open
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-7 text-xs bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border border-red-200 shadow-sm"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (confirm('Are you sure you want to decline this patient?')) {
+                                try {
+                                  await fetch(getApiUrl(`/api/visits/${item.id}`), { method: 'DELETE' });
+                                  setQueue(prev => prev.filter(q => q.id !== item.id));
+                                  toast({ title: "Patient declined", variant: "default" });
+                                } catch (err) {
+                                  toast({ title: "Failed to decline", variant: "destructive" });
+                                }
+                              }
+                            }}
+                          >
+                            Decline
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                            onClick={(e) => handleAccept(e, item)}
+                          >
+                            Accept
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

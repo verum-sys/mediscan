@@ -9,7 +9,8 @@ import {
     ClipboardList,
     MoreHorizontal,
     X,
-    UserCircle
+    UserCircle,
+    Activity
 } from "lucide-react";
 import {
     Drawer,
@@ -35,7 +36,7 @@ export function MobileNav() {
     ];
 
     const moreItems = [
-        { icon: FileText, label: "DDX Tool", path: "/ddx", description: "Differential Diagnosis" },
+        { icon: Activity, label: "IDSD", path: "/surveillance", description: "Disease Surveillance" },
         { icon: FileClock, label: "Logs", path: "/logs", description: "Audit & Activity Logs" },
         { icon: Settings, label: "Settings", path: "/settings", description: "App Configuration" },
     ];

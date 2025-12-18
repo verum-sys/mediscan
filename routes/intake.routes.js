@@ -106,9 +106,10 @@ router.post('/patient-intake', async (req, res) => {
         INSTRUCTIONS FOR DATA EXTRACTION:
         - Extract new information from the user's latest message.
         - Merge it with the known "Current collected data".
-        - CRITICAL: All extracted values (symptoms, history, etc.) MUST be translated to standard ENGLISH Medical Terms.
-        - Example: If user says "मुझे बुखार है" (Hindi), extract "symptoms": ["Fever"].
-        - Example: If user says "सूखी खांसी" (Hindi), extract "symptoms": ["Dry Cough"].
+        - CRITICAL: All extracted values (symptoms, history, chiefComplaint, etc.) MUST be translated to standard ENGLISH Medical Terms.
+        - NEVER return Non-English text in 'extracted_data'.
+        - Example: If user says "मुझे बुखार है" (Hindi), extract "symptoms": ["Fever"] (NOT "Bukhar").
+        - Example: If user says "सीने में दर्द" (Hindi), extract "chiefComplaint": "Chest Pain".
         - "symptoms": List distinct symptoms mentioned.
         - "medicalHistory": List past diseases.
         
@@ -211,7 +212,8 @@ router.post('/patient-intake/submit', async (req, res) => {
                         {
                             role: 'system',
                             content: `Summarize the following medical intake conversation into EXACTLY 2 concise lines in ENGLISH. 
-                            Even if the conversation is in Hindi or another language, the summary MUST be in ENGLISH.
+                            Even if the conversation is in Hindi, Spanish, or ANY other language, the output summary MUST be in ENGLISH.
+                            Do not use the original language in the summary. Translate everything.
                             Include: Name, Age, Gender, Chief Complaint (Translate to English), Symptom specifics, and History/Meds. 
                             Start directly with the details.`
                         },

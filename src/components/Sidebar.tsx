@@ -21,7 +21,7 @@ export function Sidebar() {
         { icon: Siren, label: "Triage & Alerts", path: "/emergency/triage" },
         { icon: Users, label: "Patients", path: "/patients" }, // Note: Check if this route exists
         { icon: Upload, label: "Scan & Upload", path: "/camera" },
-        { icon: FileText, label: "Differential Diagnosis", path: "/ddx" },
+        { icon: Activity, label: "Disease Surveillance", path: "/surveillance" },
         { icon: FileClock, label: "Logs", path: "/logs" },
         { icon: Settings, label: "Settings", path: "/settings" },
     ];

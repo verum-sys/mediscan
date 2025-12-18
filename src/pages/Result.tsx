@@ -1,24 +1,26 @@
 import { useEffect, useState } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, FileText, Sparkles, Clock } from "lucide-react";
+import { Download, FileText, Sparkles, Clock, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/config";
 
 export default function Result() {
   const { id } = useParams();
   const location = useLocation();
-  const [document, setDocument] = useState<any>(null);
+  const navigate = useNavigate();
+  const [docResult, setDocResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     if (location.state?.documentData) {
       const data = location.state.documentData;
-      setDocument({
+      setDocResult({
         id: data.documentId,
+        visitId: data.visitId, // Capture visitId
         filename: data.filename || "Scanned Document",
         raw_text: data.raw_text,
         cleaned_text: data.cleaned_text,
@@ -37,7 +39,7 @@ export default function Result() {
       const response = await fetch(getApiUrl(`/api/documents/${id}`));
       if (!response.ok) throw new Error("Failed to fetch document");
       const data = await response.json();
-      setDocument(data);
+      setDocResult(data);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -66,7 +68,7 @@ export default function Result() {
     );
   }
 
-  if (!document) {
+  if (!docResult) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Document not found</p>
@@ -77,9 +79,21 @@ export default function Result() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-12">
       <div className="container mx-auto px-6 max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Processing Results</h1>
-          <p className="text-muted-foreground">Document: {document.filename}</p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Processing Results</h1>
+            <p className="text-muted-foreground">Document: {docResult.filename}</p>
+          </div>
+          {docResult.visitId && (
+            <Button
+              size="lg"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg animate-in fade-in zoom-in duration-300"
+              onClick={() => navigate(`/visit/${docResult.visitId}`)}
+            >
+              View Clinical Report
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          )}
         </div>
 
         {/* Stats Bar */}
@@ -89,7 +103,7 @@ export default function Result() {
               <Clock className="w-5 h-5 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Processing Time</p>
-                <p className="text-lg font-semibold">{document.processing_time_ms}ms</p>
+                <p className="text-lg font-semibold">{docResult.processing_time_ms}ms</p>
               </div>
             </div>
           </Card>
@@ -98,7 +112,7 @@ export default function Result() {
               <FileText className="w-5 h-5 text-success" />
               <div>
                 <p className="text-sm text-muted-foreground">Method</p>
-                <p className="text-lg font-semibold capitalize">{document.processing_method}</p>
+                <p className="text-lg font-semibold capitalize">{docResult.processing_method}</p>
               </div>
             </div>
           </Card>
@@ -107,7 +121,7 @@ export default function Result() {
               <Sparkles className="w-5 h-5 text-accent" />
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
-                <p className="text-lg font-semibold capitalize">{document.status}</p>
+                <p className="text-lg font-semibold capitalize">{docResult.status}</p>
               </div>
             </div>
           </Card>
@@ -131,10 +145,10 @@ export default function Result() {
 
             <TabsContent value="raw" className="p-6">
               <div className="bg-muted/30 rounded-xl p-6 min-h-[400px] font-mono text-sm whitespace-pre-wrap">
-                {document.raw_text || "No raw text available"}
+                {docResult.raw_text || "No raw text available"}
               </div>
               <Button
-                onClick={() => downloadText(document.raw_text, "raw-text.txt")}
+                onClick={() => downloadText(docResult.raw_text, "raw-text.txt")}
                 variant="outline"
                 className="mt-4"
               >
@@ -145,10 +159,10 @@ export default function Result() {
 
             <TabsContent value="cleaned" className="p-6">
               <div className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-xl p-6 min-h-[400px] text-sm whitespace-pre-wrap">
-                {document.cleaned_text || "No cleaned text available"}
+                {docResult.cleaned_text || "No cleaned text available"}
               </div>
               <Button
-                onClick={() => downloadText(document.cleaned_text, "cleaned-text.txt")}
+                onClick={() => downloadText(docResult.cleaned_text, "cleaned-text.txt")}
                 className="mt-4"
               >
                 <Download className="w-4 h-4 mr-2" />

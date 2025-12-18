@@ -522,5 +522,55 @@ export const getSymptomHistory = async (visitId) => {
     }
 };
 
-export const createTriageAssessment = async () => ({});
-export const summarizeConversation = async () => ({});
+// Triage Queue Implementation
+export const getTriageQueue = async () => {
+    try {
+        // In a real scenario, this would query a Triage or Visits table
+        // For now, we return a mock dataset that matches the Triage Dashboard expectations
+        return [
+            {
+                id: 'triage-1',
+                name: 'Rajesh Kumar',
+                age: 45,
+                sex: 'M',
+                chiefComplaint: 'Chest pain radiating to left arm',
+                vitals: { hr: 110, spo2: 96, temp: 37.2 },
+                level: { priority: 2, reason: "Possible Cardiac Event" },
+                timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString() // 10 mins ago
+            },
+            {
+                id: 'triage-2',
+                name: 'Priya Sharma',
+                age: 28,
+                sex: 'F',
+                chiefComplaint: 'High fever and severe headache',
+                vitals: { hr: 102, spo2: 98, temp: 39.5 },
+                level: { priority: 3, reason: "Infection/Febrile Illness" },
+                timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString()
+            },
+            {
+                id: 'triage-3',
+                name: 'Amit Patel',
+                age: 62,
+                sex: 'M',
+                chiefComplaint: 'Difficulty breathing',
+                vitals: { hr: 95, spo2: 88, temp: 36.8 },
+                level: { priority: 1, reason: "Respiratory Distress (Low SpO2)" },
+                timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString()
+            }
+        ];
+    } catch (error) {
+        console.error("Error getting triage queue:", error);
+        return [];
+    }
+};
+
+export const createTriageAssessment = async (data) => {
+    console.log("Creating triage assessment:", data);
+    return { id: uuidv4(), ...data, status: 'created' };
+};
+
+export const summarizeConversation = async (messages) => {
+    console.log("Summarizing conversation:", messages?.length);
+    return { summary: "Conversation summarized." };
+};

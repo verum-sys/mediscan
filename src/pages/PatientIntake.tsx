@@ -125,14 +125,15 @@ export default function PatientIntake() {
     }, [messages]);
 
     // Auto-submit when complete
+    // Auto-submit when complete
     useEffect(() => {
         if (isComplete) {
             toast({
                 title: "Interview Complete",
-                description: "Redirecting to your clinical report in 5 seconds...",
-                duration: 5000
+                description: "Redirecting to your clinical report in 25 seconds...",
+                duration: 25000
             });
-            const timer = setTimeout(() => submitToDoctor(), 5000);
+            const timer = setTimeout(() => submitToDoctor(), 25000);
             return () => clearTimeout(timer);
         }
     }, [isComplete]);

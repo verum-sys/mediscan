@@ -127,12 +127,14 @@ export const getQueue = async () => {
         ];
 
         // Map real visits with proper flags
-        const realVisits = visits.map(v => ({
-            ...v,
-            has_high_risk: (v.criticality === 'Critical' || v.confidence_score < 70),
-            needs_follow_up: (v.status === 'follow_up' || v.needs_follow_up === true),
-            has_incomplete_data: (!v.chief_complaint || v.status === 'incomplete')
-        }));
+        const realVisits = visits
+            .filter(v => v.source_type !== 'document_scanner') // Filter out document scans
+            .map(v => ({
+                ...v,
+                has_high_risk: (v.criticality === 'Critical' || v.confidence_score < 70),
+                needs_follow_up: (v.status === 'follow_up' || v.needs_follow_up === true),
+                has_incomplete_data: (!v.chief_complaint || v.status === 'incomplete')
+            }));
 
         // Combine: Real visits first (sorted by time), then mock queue
         // Filter out mocks that already exist in database (realVisits)
