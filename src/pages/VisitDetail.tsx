@@ -400,7 +400,7 @@ export default function VisitDetail() {
             <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-8 flex items-center justify-center">
                 <Card className="glass-card p-8 text-center">
                     <p className="text-muted-foreground mb-4">Visit not found</p>
-                    <Button onClick={() => navigate("/")}>Back to Dashboard</Button>
+                    <Button onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
                 </Card>
             </div>
         );
@@ -419,7 +419,7 @@ export default function VisitDetail() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <Button variant="ghost" size="icon" className="-ml-3 md:ml-0" onClick={() => navigate("/")}>
+                        <Button variant="ghost" size="icon" className="-ml-3 md:ml-0" onClick={() => navigate("/dashboard")}>
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
                         <div className="flex-1">
@@ -533,7 +533,7 @@ export default function VisitDetail() {
                                     if (confirm("Are you sure? This cannot be undone.")) {
                                         try {
                                             const res = await fetch(getApiUrl(`/api/visits/${id}`), { method: 'DELETE' });
-                                            if (res.ok) { toast({ title: "Deleted" }); navigate("/"); }
+                                            if (res.ok) { toast({ title: "Deleted" }); navigate("/dashboard"); }
                                         } catch (e) { toast({ title: "Error", variant: "destructive" }); }
                                     }
                                 }}

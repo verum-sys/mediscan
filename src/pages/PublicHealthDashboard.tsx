@@ -137,7 +137,7 @@ export default function PublicHealthDashboard() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => navigate("/")}
+                            onClick={() => navigate("/dashboard")}
                             className="w-10 h-10 rounded-full border border-input bg-background shadow-sm shrink-0 md:bg-transparent md:border-none md:shadow-none"
                         >
                             <ArrowLeft className="h-4 w-4" />

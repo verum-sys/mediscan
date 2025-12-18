@@ -7,17 +7,16 @@ export default function Landing() {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-300">
+        <div
+            className="min-h-screen text-foreground flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-300 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: "url('/bg-hospital.png')" }}
+        >
+            {/* Overlay for contrast - Darker in dark mode, lighter in light mode */}
+            <div className="absolute inset-0 bg-white/40 dark:bg-black/60 backdrop-blur-sm z-0" />
 
             {/* Theme Toggle */}
             <div className="absolute top-6 right-6 z-50">
                 <ModeToggle />
-            </div>
-
-            {/* Background Ambience */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 blur-[120px] rounded-full mix-blend-screen animate-pulse duration-1000" />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-500/10 blur-[120px] rounded-full mix-blend-screen animate-pulse duration-1000 delay-500" />
             </div>
 
             <div className="z-10 w-full max-w-4xl animate-in fade-in zoom-in duration-500">
