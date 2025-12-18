@@ -28,7 +28,7 @@ export async function speakText(text: string, language: string = "hi", voiceId: 
                 language: language,
                 output_format: {
                     container: "mp3",
-                    bit_rate: 128000,
+                    bit_rate: 64000,
                     sample_rate: 44100
                 }
             })
