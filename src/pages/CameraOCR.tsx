@@ -156,7 +156,7 @@ export default function CameraOCR() {
                         className="text-white hover:bg-white/20"
                         onClick={() => {
                             stopCamera();
-                            navigate("/");
+                            navigate("/dashboard");
                         }}
                     >
                         <X className="h-6 w-6" />

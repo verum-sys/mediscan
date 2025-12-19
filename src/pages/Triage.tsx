@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ interface QueueItem {
 }
 
 export default function Triage() {
+    const navigate = useNavigate();
     const { toast } = useToast();
     const [activeTab, setActiveTab] = useState("intake");
     const [loading, setLoading] = useState(false);
@@ -300,7 +302,7 @@ export default function Triage() {
                         </Button>
                         <Button
                             variant={activeTab === "intake" ? "default" : "outline"}
-                            onClick={() => setActiveTab("intake")}
+                            onClick={() => navigate("/patient-intake")}
                             size="sm"
                         >
                             <Stethoscope className="w-4 h-4 md:mr-2" />

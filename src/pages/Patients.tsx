@@ -107,7 +107,7 @@ export default function Patients() {
                         </h1>
                         <p className="text-muted-foreground mt-1">Manage patient records and clinical history</p>
                     </div>
-                    <Button onClick={() => navigate("/camera")} className="gap-2 shadow-lg shadow-primary/20">
+                    <Button onClick={() => navigate("/patient-intake")} className="gap-2 shadow-lg shadow-primary/20">
                         <UserPlus className="w-4 h-4" />
                         Register New Patient
                     </Button>
