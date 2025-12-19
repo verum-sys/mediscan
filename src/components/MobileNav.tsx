@@ -28,18 +28,38 @@ export function MobileNav() {
     const location = useLocation();
     const [open, setOpen] = useState(false);
 
+    const userRole = localStorage.getItem('userRole');
+
     const mainItems = [
         { icon: LayoutDashboard, label: "Home", path: "/" },
         { icon: Upload, label: "Scan", path: "/camera" },
         { icon: ClipboardList, label: "Intake", path: "/patient-intake" },
         { icon: Siren, label: "Triage", path: "/emergency/triage" },
-    ];
+    ].filter(item => {
+        if (userRole === 'admin') {
+            return !['Home', 'Triage', 'Scan'].includes(item.label);
+        }
+        return true;
+    });
+
+
 
     const moreItems = [
         { icon: Activity, label: "IDSD", path: "/surveillance", description: "Disease Surveillance" },
         { icon: FileClock, label: "Logs", path: "/logs", description: "Audit & Activity Logs" },
         { icon: Settings, label: "Settings", path: "/settings", description: "App Configuration" },
-    ];
+    ].filter(item => {
+        if (userRole === 'doctor') {
+            return !['IDSD', 'Logs'].includes(item.label);
+        }
+        if (userRole === 'admin') {
+            // Admin mostly needs Logs, IDSD, Settings.
+            // moreItems has IDSD, Logs, Settings. 
+            // We probably want to keep all of them for Admin.
+            return true;
+        }
+        return true;
+    });
 
     const handleNavigation = (path: string) => {
         navigate(path);

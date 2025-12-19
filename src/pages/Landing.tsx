@@ -85,7 +85,10 @@ export default function Landing() {
 
                     {/* Doctor Card */}
                     <div
-                        onClick={() => navigate('/dashboard')}
+                        onClick={() => {
+                            localStorage.setItem('userRole', 'doctor');
+                            navigate('/dashboard');
+                        }}
                         className="group relative cursor-pointer"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/5 rounded-3xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -107,7 +110,10 @@ export default function Landing() {
 
                     {/* Administrator Card */}
                     <div
-                        onClick={() => navigate('/logs')}
+                        onClick={() => {
+                            localStorage.setItem('userRole', 'admin');
+                            navigate('/logs'); // Or keep it as /logs if that's the admin landing
+                        }}
                         className="group relative cursor-pointer"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-indigo-500/5 rounded-3xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

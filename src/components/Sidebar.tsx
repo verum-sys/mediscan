@@ -16,6 +16,8 @@ export function Sidebar() {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const userRole = localStorage.getItem('userRole');
+
     const menuItems = [
         { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
         { icon: Siren, label: "Triage & Alerts", path: "/emergency/triage" },
@@ -24,7 +26,15 @@ export function Sidebar() {
         { icon: Activity, label: "Disease Surveillance", path: "/surveillance" },
         { icon: FileClock, label: "Logs", path: "/logs" },
         { icon: Settings, label: "Settings", path: "/settings" },
-    ];
+    ].filter(item => {
+        if (userRole === 'doctor') {
+            return !['Logs', 'Disease Surveillance'].includes(item.label);
+        }
+        if (userRole === 'admin') {
+            return !['Dashboard', 'Triage & Alerts', 'Scan & Upload'].includes(item.label);
+        }
+        return true;
+    });
 
     return (
         <div className="hidden md:flex w-64 h-screen bg-card/50 backdrop-blur-xl border-r border-border flex-col p-4 shrink-0 fixed left-0 top-0 z-50">
