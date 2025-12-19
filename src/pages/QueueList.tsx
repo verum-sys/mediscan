@@ -180,7 +180,7 @@ export default function QueueList() {
             const filtered = allData.filter(item => {
                 if (category === 'critical') return item.has_high_risk || item.criticality === 'Critical';
                 if (category === 'moderate') return item.needs_follow_up && !item.has_high_risk;
-                if (category === 'stable') return !item.has_high_risk && !item.needs_follow_up && !item.has_incomplete_data;
+                if (category === 'stable') return !item.has_high_risk && item.criticality !== 'Critical' && !item.needs_follow_up && !item.has_incomplete_data;
                 if (category === 'incomplete') return item.has_incomplete_data;
                 if (category === 'followup') return item.needs_follow_up;
                 if (category === 'ipd') return item.is_ipd_admission;

@@ -95,6 +95,36 @@ export const deleteVisit = async (visitId) => {
 
 export const getMockQueueData = () => [
     {
+        id: 'mock-inc-1',
+        visit_number: 'OPD-2024-INC01',
+        patient_name: 'Unknown Male',
+        chief_complaint: '', // Empty for incomplete flag
+        facility_name: 'Emergency Triage',
+        department: 'Trauma',
+        provider_name: 'Triage Nurse',
+        status: 'incomplete',
+        confidence_score: 40,
+        created_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+        visit_notes: 'Patient brought in unconscious. Identification pending.',
+        criticality: 'Unknown',
+        needs_follow_up: true
+    },
+    {
+        id: 'mock-inc-2',
+        visit_number: 'OPD-2024-INC02',
+        patient_name: 'Priya (Surname Unknown)',
+        chief_complaint: 'Severe Abdominal Pain',
+        facility_name: 'Mediscan Central',
+        department: 'Gastroenterology',
+        provider_name: 'Dr. Emily Davis',
+        status: 'incomplete',
+        confidence_score: 55,
+        created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+        visit_notes: 'Insurance details and past history not available.',
+        criticality: 'Stable',
+        needs_follow_up: true
+    },
+    {
         id: 'mock-q-6',
         visit_number: 'OPD-2024-901',
         patient_name: 'Rajesh Kumar',

@@ -62,18 +62,23 @@ export const getQueue = async () => {
 
         // Map real visits with proper flags
         const realVisits = visits
-            .filter(v => v.source_type !== 'document_scanner') // Filter out document scans
+            .filter(v => v.source_type !== 'document_scanner' && v.visit_number && v.created_at) // Filter out document scans and invalid rows
             .map(v => ({
                 ...v,
-                has_high_risk: (v.criticality === 'Critical' || v.confidence_score < 70),
+                has_high_risk: (v.criticality === 'Critical'),
                 needs_follow_up: (v.status === 'follow_up' || v.needs_follow_up === true),
-                has_incomplete_data: (!v.chief_complaint || v.status === 'incomplete')
+                has_incomplete_data: (!v.chief_complaint || v.status === 'incomplete' || (v.confidence_score && v.confidence_score < 70))
             }));
 
         // Combine: Real visits first (sorted by time), then mock queue
         // Filter out mocks that already exist in database (realVisits)
         const realIds = new Set(realVisits.map(v => v.id));
-        const filteredMocks = MOCK_QUEUE.filter(mock => !realIds.has(mock.id));
+        const filteredMocks = MOCK_QUEUE.filter(mock => !realIds.has(mock.id)).map(v => ({
+            ...v,
+            has_high_risk: (v.criticality === 'Critical'),
+            needs_follow_up: (v.status === 'follow_up' || v.needs_follow_up === true),
+            has_incomplete_data: (!v.chief_complaint || v.status === 'incomplete' || (v.confidence_score && v.confidence_score < 70))
+        }));
 
         console.log("[DEBUG] getQueue - Mocks:", MOCK_QUEUE ? MOCK_QUEUE.length : 'undefined');
         console.log("[DEBUG] getQueue - Real:", realVisits.length);
