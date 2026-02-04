@@ -135,6 +135,48 @@ export default function VisitDetail() {
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
     const [feedback, setFeedback] = useState<Record<string, 'up' | 'down'>>({});
 
+    // Lab Test Logic
+    const [bookedTests, setBookedTests] = useState<Set<string>>(new Set());
+    const [newTestName, setNewTestName] = useState("");
+
+    const handleBookTest = (testName: string, slot: string) => {
+        // Simulate API call
+        setBookedTests(prev => {
+            const newSet = new Set(prev);
+            newSet.add(testName);
+            return newSet;
+        });
+
+        toast({
+            title: "Test Booked Successfully",
+            description: `${testName} is scheduled for ${slot}.`,
+            duration: 3000
+        });
+    };
+
+    const handleAddTest = () => {
+        if (!newTestName.trim() || !clinicalAnalysis) return;
+
+        const newTest = {
+            Test_Name: newTestName,
+            Type: "Manual",
+            Confidence_Score: 100, // Manual = 100% user intent
+            logistics: {
+                live_queue: "Standard Queue",
+                next_available_slot: "Tomorrow, 10:00 AM", // Default mock slot
+                status: "Available"
+            }
+        };
+
+        setClinicalAnalysis((prev: any) => ({
+            ...prev,
+            investigative_suggestions: [...(prev.investigative_suggestions || []), newTest]
+        }));
+
+        setNewTestName("");
+        toast({ title: "Test Added to List" });
+    };
+
     const handleFeedback = (id: string, type: 'up' | 'down') => {
         setFeedback(prev => ({
             ...prev,
@@ -1058,50 +1100,94 @@ export default function VisitDetail() {
                                                 <th className="px-4 py-3">Confidence</th>
                                                 <th className="px-4 py-3">Lab Queue</th>
                                                 <th className="px-4 py-3">Next Slot</th>
+                                                <th className="px-4 py-3 text-right">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y">
-                                            {clinicalAnalysis.investigative_suggestions.map((item: any, idx: number) => (
-                                                <tr key={idx} className="bg-background hover:bg-muted/50 transition-colors">
-                                                    <td className="px-4 py-3 font-medium">{item.Test_Name}</td>
-                                                    <td className="px-4 py-3">
-                                                        <Badge variant={item.Type === 'Essential' ? 'default' : 'secondary'}>
-                                                            {item.Type}
-                                                        </Badge>
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                                <div
-                                                                    className="h-full bg-primary"
-                                                                    style={{ width: `${item.Confidence_Score}%` }}
-                                                                />
-                                                            </div>
-                                                            <span className="text-xs">{item.Confidence_Score}%</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        {item.logistics && (
-                                                            <div className="flex items-center gap-2">
-                                                                <Users className="w-4 h-4 text-muted-foreground" />
-                                                                <span className={`text-xs font-medium ${item.logistics.status === 'High Wait Time' ? 'text-orange-500' : 'text-green-600'}`}>
-                                                                    {item.logistics.live_queue}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        {item.logistics && (
-                                                            <Badge variant="outline" className="font-mono font-normal">
-                                                                <Clock className="w-3 h-3 mr-1" />
-                                                                {item.logistics.next_available_slot}
+                                            {clinicalAnalysis.investigative_suggestions.map((item: any, idx: number) => {
+                                                const isBooked = bookedTests.has(item.Test_Name);
+                                                return (
+                                                    <tr key={`${item.Test_Name}-${idx}`} className="bg-background hover:bg-muted/50 transition-colors">
+                                                        <td className="px-4 py-3 font-medium">{item.Test_Name}</td>
+                                                        <td className="px-4 py-3">
+                                                            <Badge variant={item.Type === 'Essential' ? 'default' : item.Type === 'Manual' ? 'outline' : 'secondary'}>
+                                                                {item.Type}
                                                             </Badge>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className="h-full bg-primary"
+                                                                        style={{ width: `${item.Confidence_Score}%` }}
+                                                                    />
+                                                                </div>
+                                                                <span className="text-xs">{item.Confidence_Score}%</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            {item.logistics && (
+                                                                <div className="flex items-center gap-2">
+                                                                    <Users className="w-4 h-4 text-muted-foreground" />
+                                                                    <span className={`text-xs font-medium ${item.logistics.status === 'High Wait Time' ? 'text-orange-500' : 'text-green-600'}`}>
+                                                                        {item.logistics.live_queue}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            {item.logistics && (
+                                                                <Badge variant="outline" className="font-mono font-normal">
+                                                                    <Clock className="w-3 h-3 mr-1" />
+                                                                    {item.logistics.next_available_slot}
+                                                                </Badge>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <Button
+                                                                size="sm"
+                                                                variant={isBooked ? "secondary" : "default"}
+                                                                className={`h-8 min-w-[100px] ${isBooked ? "bg-green-100 text-green-700 hover:bg-green-200" : ""}`}
+                                                                disabled={isBooked}
+                                                                onClick={() => {
+                                                                    const timeSlot = item.logistics?.next_available_slot || "Tomorrow, 9:00 AM";
+                                                                    handleBookTest(item.Test_Name, timeSlot);
+                                                                }}
+                                                            >
+                                                                {isBooked ? (
+                                                                    <>
+                                                                        <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                                                                        Booked
+                                                                    </>
+                                                                ) : (
+                                                                    "Book Test"
+                                                                )}
+                                                            </Button>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
                                         </tbody>
                                     </table>
+                                </div>
+
+                                {/* Add Test Manual Entry */}
+                                <div className="mt-4 flex gap-2 items-center p-3 bg-muted/20 rounded-lg border border-dashed">
+                                    <h4 className="text-sm font-medium text-muted-foreground whitespace-nowrap">Add Test:</h4>
+                                    <Input
+                                        placeholder="e.g. Lipid Profile"
+                                        className="h-9 max-w-xs"
+                                        value={newTestName}
+                                        onChange={(e) => setNewTestName(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleAddTest()}
+                                    />
+                                    <Button size="sm" variant="outline" onClick={handleAddTest} disabled={!newTestName.trim()}>
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Add
+                                    </Button>
+                                    <p className="text-xs text-muted-foreground ml-auto hidden sm:block">
+                                        Usually added manually for specific checks not covered by AI.
+                                    </p>
                                 </div>
                             </div>
                         </div>

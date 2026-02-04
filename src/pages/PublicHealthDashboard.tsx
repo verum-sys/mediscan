@@ -14,6 +14,7 @@ import {
     MapPin,
     AlertOctagon
 } from "lucide-react";
+import UPMap from "@/components/UPMap";
 import { getApiUrl } from "@/config";
 import {
     Bar,
@@ -50,6 +51,86 @@ interface Outbreak {
     recommendedAction?: string;
 }
 
+
+// Mock Data for Uttar Pradesh Demo
+const MOCK_UP_OUTBREAKS: Outbreak[] = [
+    {
+        area: "Indira Nagar, Lucknow",
+        pincode: "226016",
+        symptom: "Dengue",
+        cases: 45,
+        baseline: 12,
+        increase: 275,
+        severity: "high",
+        severityScore: 92,
+        trend: "Rapidly Rising",
+        detected_at: new Date().toISOString(),
+        recommendedAction: "Fogging & Larval Control"
+    },
+    {
+        area: "Lanka, Varanasi",
+        pincode: "221005",
+        symptom: "Viral Fever",
+        cases: 120,
+        baseline: 80,
+        increase: 50,
+        severity: "medium",
+        severityScore: 65,
+        trend: "Rising",
+        detected_at: new Date().toISOString(),
+        recommendedAction: "Fever Camps"
+    },
+    {
+        area: "Civil Lines, Kanpur",
+        pincode: "208001",
+        symptom: "Malaria",
+        cases: 28,
+        baseline: 5,
+        increase: 460,
+        severity: "high",
+        severityScore: 88,
+        trend: "Spike",
+        detected_at: new Date().toISOString(),
+        recommendedAction: "Vector Control"
+    },
+    {
+        area: "Sector 18, Noida",
+        pincode: "201301",
+        symptom: "Respiratory Infection",
+        cases: 65,
+        baseline: 30,
+        increase: 116,
+        severity: "medium",
+        severityScore: 55,
+        trend: "Steady",
+        detected_at: new Date().toISOString(),
+        recommendedAction: "Advisory Issued"
+    }
+];
+
+const MOCK_UP_STATS: SurveillanceData = {
+    topSymptoms: [
+        { name: "Viral Fever", count: 1245 },
+        { name: "Dengue", count: 450 },
+        { name: "Gastroenteritis", count: 320 },
+        { name: "Typhoid", count: 210 },
+        { name: "Respiratory Infection", count: 180 }
+    ],
+    dailyTrends: [],
+    areaCounts: [
+        { name: "Lucknow", count: 520 },
+        { name: "Kanpur", count: 340 },
+        { name: "Varanasi", count: 290 },
+        { name: "Agra", count: 210 },
+        { name: "Noida", count: 180 },
+        { name: "Gorakhpur", count: 150 },
+        { name: "Prayagraj", count: 130 },
+        { name: "Meerut", count: 110 }
+    ],
+    totalVisits: 3450,
+    criticalCases: 124
+};
+
 export default function PublicHealthDashboard() {
     const navigate = useNavigate();
     const [data, setData] = useState<SurveillanceData | null>(null);
@@ -58,29 +139,33 @@ export default function PublicHealthDashboard() {
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
     const loadData = async () => {
-        setLoading(true);
+        setLoading(true); // Ensure loading state is set
+
+        // Fetch real data for stats, but keep visual mock data for UP Maps/Outbreaks as requested
         try {
-            // Use enhanced endpoints with pincode-based clustering
-            const [dataRes, outbreaksRes] = await Promise.all([
-                fetch(getApiUrl('/api/surveillance/enhanced-data')),
-                fetch(getApiUrl('/api/surveillance/outbreaks-by-area'))
-            ]);
+            const dataRes = await fetch(getApiUrl('/api/surveillance/enhanced-data'));
 
             if (dataRes.ok) {
-                const surveillanceData = await dataRes.json();
-                setData(surveillanceData);
+                const realData = await dataRes.json();
+                setData({
+                    ...MOCK_UP_STATS, // Start with mock structure
+                    totalVisits: realData.totalVisits || 0, // OVERRIDE with real total
+                    criticalCases: realData.criticalCases || 0, // OVERRIDE with real critical count
+                    // Keep mock areaCounts for the map visual
+                });
+            } else {
+                setData(MOCK_UP_STATS);
             }
-
-            if (outbreaksRes.ok) {
-                const outbreakData = await outbreaksRes.json();
-                setOutbreaks(outbreakData);
-            }
-        } catch (error) {
-            console.error('Failed to load surveillance data:', error);
-        } finally {
-            setLoading(false);
-            setLastUpdated(new Date());
+        } catch (e) {
+            console.error("Using mock data due to fetch error", e);
+            setData(MOCK_UP_STATS);
         }
+
+        // Always use the specific UP Outbreaks mock for the alert list as requested
+        setOutbreaks(MOCK_UP_OUTBREAKS);
+
+        setLoading(false);
+        setLastUpdated(new Date());
     };
 
     useEffect(() => {
@@ -199,120 +284,85 @@ export default function PublicHealthDashboard() {
                     </Card>
                 </div>
 
-                {/* Outbreak Alerts */}
-                {outbreaks.length > 0 && (
-                    <Card className="p-4 md:p-6 mb-6">
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
-                                <AlertOctagon className="h-5 w-5" />
+
+                {/* Outbreak Alerts & Map Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    {/* Outbreak Detection Alerts (Left Column - 1/2 width) */}
+                    <div className="lg:col-span-1 h-full">
+                        <Card className="p-4 md:p-6 mb-0 h-full flex flex-col">
+                            <div className="flex items-center gap-2 mb-4 shrink-0">
+                                <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+                                    <AlertOctagon className="h-5 w-5" />
+                                </div>
+                                <h3 className="text-lg font-semibold leading-tight">Outbreak Detection</h3>
                             </div>
-                            <h3 className="text-lg font-semibold">Outbreak Detection Alerts</h3>
-                        </div>
-                        <div className="space-y-4">
-                            {outbreaks.map((outbreak, idx) => {
-                                const isUnknown = (outbreak.area && outbreak.area.toUpperCase().includes('UNKNOWN')) ||
-                                    (outbreak.pincode && outbreak.pincode.toUpperCase().includes('UNKNOWN'));
 
-                                if (isUnknown) return null;
+                            <div className="space-y-3 overflow-y-auto pr-2 flex-grow max-h-[500px]">
+                                {outbreaks.length === 0 ? (
+                                    <div className="text-center py-8 text-muted-foreground">No active outbreaks detected.</div>
+                                ) : (
+                                    outbreaks.map((outbreak, idx) => {
+                                        const isUnknown = (outbreak.area && outbreak.area.toUpperCase().includes('UNKNOWN')) ||
+                                            (outbreak.pincode && outbreak.pincode.toUpperCase().includes('UNKNOWN'));
 
-                                return (
-                                    <div
-                                        key={idx}
-                                        className={`border rounded-xl p-4 transition-all duration-200 hover:shadow-sm ${getSeverityColor(outbreak.severity)}`}
-                                    >
-                                        <div className="flex flex-col gap-3">
-                                            {/* Header Row: Symptom & Severity Badge */}
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                                <h4 className="font-bold text-lg tracking-tight">{outbreak.symptom}</h4>
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <Badge variant={outbreak.severity === 'high' ? 'destructive' : 'default'} className="uppercase text-[10px] tracking-wider px-2 py-0.5">
-                                                        {outbreak.severity} SEVERITY
-                                                    </Badge>
-                                                    {outbreak.severityScore && (
-                                                        <Badge variant="outline" className="text-[10px] bg-background/50 backdrop-blur-sm border-current/20">
-                                                            Score: {outbreak.severityScore}
+                                        if (isUnknown) return null;
+
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className={`border rounded-xl p-3 transition-all duration-200 hover:shadow-sm ${getSeverityColor(outbreak.severity)}`}
+                                            >
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="flex flex-row justify-between items-start gap-1">
+                                                        <h4 className="font-bold text-sm">{outbreak.symptom}</h4>
+                                                        <Badge variant={outbreak.severity === 'high' ? 'destructive' : 'default'} className="uppercase text-[10px] px-1.5 h-5">
+                                                            {outbreak.severity}
                                                         </Badge>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Location Row */}
-                                            {outbreak.area && (
-                                                <div className="flex items-center text-sm font-medium opacity-90">
-                                                    <MapPin className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-                                                    <span>{outbreak.area}</span>
-                                                    {outbreak.pincode && <span className="opacity-70 ml-1 font-normal">({outbreak.pincode})</span>}
-                                                </div>
-                                            )}
-
-                                            {/* Stats Grid */}
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-background/40 rounded-lg text-sm border border-current/10">
-                                                <div className="flex flex-col">
-                                                    <span className="opacity-70 text-xs uppercase tracking-wide">Cases (24h)</span>
-                                                    <span className="font-bold text-base">
-                                                        {outbreak.cases} <span className="text-xs font-normal opacity-70">cases</span>
-                                                    </span>
-                                                    <span className="text-xs opacity-70">Baseline: {outbreak.baseline}/day</span>
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="opacity-70 text-xs uppercase tracking-wide">Trend</span>
-                                                    <div className="flex items-center font-bold text-base">
-                                                        <TrendingUp className="h-3.5 w-3.5 mr-1" />
-                                                        {outbreak.increase}%
                                                     </div>
-                                                    <span className="text-xs opacity-70">{outbreak.trend || 'Accelerating'}</span>
+
+                                                    {outbreak.area && (
+                                                        <div className="flex items-center text-xs font-medium opacity-90">
+                                                            <MapPin className="h-3 w-3 mr-1 shrink-0" />
+                                                            <span className="truncate">{outbreak.area}</span>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="grid grid-cols-2 gap-2 text-xs opacity-80 mt-1">
+                                                        <div>
+                                                            <span className="block opacity-70 text-[10px] uppercase">Cases</span>
+                                                            <span className="font-semibold">{outbreak.cases} ({outbreak.increase}%)</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="block opacity-70 text-[10px] uppercase">Action</span>
+                                                            <span className="font-semibold truncate">{outbreak.recommendedAction || 'Monitor'}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </Card>
+                    </div>
 
-                                            {/* Action Box */}
-                                            {outbreak.recommendedAction && (
-                                                <div className="text-sm p-3 bg-background/60 rounded-lg border border-current/10">
-                                                    <strong className="block text-xs uppercase opacity-70 mb-1">Recommended Action</strong>
-                                                    {outbreak.recommendedAction}
-                                                </div>
-                                            )}
-
-                                            {/* Footer: Timestamp */}
-                                            <div className="text-xs opacity-60 text-right pt-1 border-t border-current/10 mt-1">
-                                                Detected: {new Date(outbreak.detected_at).toLocaleString()}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </Card>
-                )}
+                    {/* UP Map (Right Column - 1/2 width) */}
+                    <div className="lg:col-span-1 h-full">
+                        <Card className="p-6 h-full flex flex-col">
+                            <div className="flex items-center gap-2 mb-4 shrink-0">
+                                <MapPin className="h-5 w-5 text-primary" />
+                                <h3 className="text-lg font-semibold">Disease Heatmap (Uttar Pradesh)</h3>
+                            </div>
+                            <div className="flex-grow min-h-[400px]">
+                                <UPMap data={data?.areaCounts || []} />
+                            </div>
+                        </Card>
+                    </div>
+                </div>
 
                 {/* Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    {/* Daily Trends */}
-                    <Card className="p-6">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Calendar className="h-5 w-5 text-primary" />
-                            <h3 className="text-lg font-semibold">Daily Visit Trends (Last 7 Days)</h3>
-                        </div>
-                        <ResponsiveContainer width="100%" height={250}>
-                            <LineChart data={data?.dailyTrends || []}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis
-                                    dataKey="date"
-                                    tickFormatter={formatDate}
-                                    tick={{ fontSize: 12 }}
-                                />
-                                <YAxis tick={{ fontSize: 12 }} />
-                                <Tooltip labelFormatter={formatDate} />
-                                <Legend />
-                                <Line
-                                    type="monotone"
-                                    dataKey="count"
-                                    stroke="#3b82f6"
-                                    name="Visits"
-                                    strokeWidth={2}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </Card>
+                <div className="grid grid-cols-1 gap-6 mb-6">
+
 
                     {/* Top Symptoms */}
                     <Card className="p-6">
@@ -337,28 +387,8 @@ export default function PublicHealthDashboard() {
                     </Card>
                 </div>
 
-                {/* Geographic Distribution */}
-                <Card className="p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <MapPin className="h-5 w-5 text-primary" />
-                        <h3 className="text-lg font-semibold">Cases by Area</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {data?.areaCounts?.map((area, idx) => (
-                            <div key={idx} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="font-medium">{area.name}</p>
-                                        <p className="text-sm text-muted-foreground">Area</p>
-                                    </div>
-                                    <Badge variant="outline" className="text-lg font-bold">
-                                        {area.count}
-                                    </Badge>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </Card>
+
+
             </div>
         </div>
     );

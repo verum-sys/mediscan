@@ -6,28 +6,33 @@ export const getStats = async () => {
     try {
         const visits = await scanTable("Visits");
 
-        // Count ALL visits (not just today) so total persists across restarts
-        const allVisitsCount = visits.length;
+        // Filter out WAITING visits so they only 'count' once accepted/processed
+        // This ensures the dashboard numbers increase when a user clicks "Accept"
+        // Also strictly require visit_number to filter out any partial/broken records from failed tests
+        const activeVisits = visits.filter(v => v.status !== 'waiting' && v.visit_number);
+
+        // Count ALL active visits (not just today) so total persists across restarts
+        const allVisitsCount = activeVisits.length;
 
         // Count critical cases based on criticality field or low confidence
-        const highRisk = visits.filter(v =>
+        const highRisk = activeVisits.filter(v =>
             v.criticality === 'Critical' ||
             (v.confidence_score && v.confidence_score < 60) ||
             (v.visit_notes && v.visit_notes.toLowerCase().includes('high risk'))
         ).length;
 
-        const incompleteData = visits.filter(v =>
+        const incompleteData = activeVisits.filter(v =>
             !v.chief_complaint || v.status === 'incomplete'
         ).length;
 
         // Count follow-up visits based on status or notes
-        const followUp = visits.filter(v =>
+        const followUp = activeVisits.filter(v =>
             v.status === 'follow_up' ||
             v.needs_follow_up === true ||
             (v.visit_notes && v.visit_notes.toLowerCase().includes('follow up'))
         ).length;
 
-        const opdToIpdCount = visits.filter(v => v.is_ipd_admission === true).length;
+        const opdToIpdCount = activeVisits.filter(v => v.is_ipd_admission === true).length;
 
         // Baseline data to make dashboard look impressive
         const BASELINE = {

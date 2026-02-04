@@ -378,6 +378,10 @@ export default function Dashboard() {
     e.stopPropagation();
     try {
       setQueue(prev => prev.filter(q => q.id !== item.id));
+
+      // OPTIMISTIC UPDATE: Increment total stats immediately
+      setStats(prev => ({ ...prev, todayTotal: prev.todayTotal + 1 }));
+
       await fetch(getApiUrl(`/api/visits/${item.id}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

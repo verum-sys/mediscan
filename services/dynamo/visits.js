@@ -39,7 +39,56 @@ export const createVisit = async (visitData) => {
     }
 };
 
+// Helper to check if mock data is stale (> 2 hours)
+const isMockStale = (createdAt) => {
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+    const createdTime = new Date(createdAt).getTime();
+    return (Date.now() - createdTime) > TWO_HOURS_MS;
+};
+
 export const updateVisit = async (visitId, updates) => {
+    // 1. Materialize Mock Data if needed
+    // If we are updating a mock visit that doesn't exist in DB yet, create it first
+    if (visitId.startsWith('mock-')) {
+        try {
+            const checkRes = await docClient.send(new GetCommand({
+                TableName: "Visits",
+                Key: { id: visitId }
+            }));
+
+            // Check if item is missing OR incomplete/partial (missing visit_number from previous failed writes)
+            if (!checkRes.Item || !checkRes.Item.visit_number) {
+                console.log(`Materializing/Repairing mock visit ${visitId} to database...`);
+                const mockData = getMockQueueData().find(v => v.id === visitId);
+                if (mockData) {
+                    await docClient.send(new PutCommand({
+                        TableName: "Visits",
+                        Item: mockData
+                    }));
+                }
+            } else if (checkRes.Item && isMockStale(checkRes.Item.created_at || new Date().toISOString())) {
+                // RESET LOGIC: If mock is materialized but OLD (> 2 hours), reset it to original mock state
+                console.log(`Resetting STALE mock visit ${visitId} to original state...`);
+                const originalMock = getMockQueueData().find(v => v.id === visitId);
+                if (originalMock) {
+                    // Force overwrite with Original
+                    await docClient.send(new PutCommand({
+                        TableName: "Visits",
+                        Item: originalMock
+                    }));
+                    // IMPORTANT: We do NOT return here, we proceed to apply the CURRENT update on top of the reset mock
+                    // This creates the effect of "Starting Fresh" for the user interaction while counting it as new.
+                    // Actually, if we reset it, it becomes "Waiting" again.
+                    // If the USER is calling 'Accepted', we want to Accept the FRESH mock.
+                    // So we Put original (Waiting), then Update (Accepted).
+                }
+            }
+
+        } catch (e) {
+            console.error("Error checking/materializing mock:", e);
+        }
+    }
+
     // Construct UpdateExpression
     let updateExp = "set";
     const expAttrValues = {};

@@ -35,6 +35,112 @@ const parseLLMResponse = (content) => {
     return null;
 };
 
+/**
+ * Detects if text contains non-ASCII characters (likely non-English)
+ */
+const containsNonEnglish = (text) => {
+    if (!text || typeof text !== 'string') return false;
+    // Check for non-ASCII characters (Hindi, Bengali, Tamil, etc. are outside ASCII range)
+    return /[^\x00-\x7F]/.test(text);
+};
+
+/**
+ * Translates text to English using LLM if it contains non-English characters
+ */
+const translateToEnglish = async (text, llmApiKey, llmBaseUrl, llmModel) => {
+    if (!text || !containsNonEnglish(text)) {
+        return text; // Already English or empty
+    }
+
+    try {
+        const response = await fetch(`${llmBaseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${llmApiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: llmModel,
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are a medical translator. Translate the following text to English medical terminology. 
+                        Output ONLY the English translation, nothing else.
+                        If it's already in English, output it as is.
+                        Be accurate and use proper medical terms.`
+                    },
+                    { role: 'user', content: text }
+                ]
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            const translated = result.choices[0]?.message?.content?.trim();
+            if (translated) {
+                console.log(`Translated "${text}" to "${translated}"`);
+                return translated;
+            }
+        }
+    } catch (e) {
+        console.error('Translation error:', e);
+    }
+    return text; // Return original if translation fails
+};
+
+/**
+ * Translates an array of strings to English
+ */
+const translateArrayToEnglish = async (arr, llmApiKey, llmBaseUrl, llmModel) => {
+    if (!Array.isArray(arr) || arr.length === 0) return arr;
+
+    // Check if any item needs translation
+    const needsTranslation = arr.some(item => containsNonEnglish(item));
+    if (!needsTranslation) return arr;
+
+    try {
+        const response = await fetch(`${llmBaseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${llmApiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: llmModel,
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are a medical translator. Translate each item in the following list to English medical terminology.
+                        Output ONLY a JSON array of translated strings, nothing else.
+                        Example input: ["बुखार", "खांसी"]
+                        Example output: ["Fever", "Cough"]`
+                    },
+                    { role: 'user', content: JSON.stringify(arr) }
+                ]
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            const translated = result.choices[0]?.message?.content?.trim();
+            if (translated) {
+                try {
+                    const parsedArr = JSON.parse(translated);
+                    if (Array.isArray(parsedArr)) {
+                        console.log(`Translated array from ${JSON.stringify(arr)} to ${JSON.stringify(parsedArr)}`);
+                        return parsedArr;
+                    }
+                } catch (parseErr) {
+                    console.error('Failed to parse translated array:', parseErr);
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Array translation error:', e);
+    }
+    return arr; // Return original if translation fails
+};
+
 // Patient Intake Chat Endpoint
 router.post('/patient-intake', async (req, res) => {
     try {
@@ -231,7 +337,19 @@ router.post('/patient-intake/submit', async (req, res) => {
             console.error("Summary generation failed", e);
         }
 
-        // 2. Create Visit Record
+        // 2. TRANSLATE Chief Complaint and Symptoms to English before storing
+        let chiefComplaint = patientData.chiefComplaint || patientData.symptoms?.[0] || 'Checkup';
+        let symptoms = patientData.symptoms || [];
+
+        // Translate chiefComplaint if it contains non-English text
+        chiefComplaint = await translateToEnglish(chiefComplaint, llmApiKey, llmBaseUrl, llmModel);
+        console.log(`Chief Complaint after translation: ${chiefComplaint}`);
+
+        // Translate symptoms array if any item contains non-English text
+        symptoms = await translateArrayToEnglish(symptoms, llmApiKey, llmBaseUrl, llmModel);
+        console.log(`Symptoms after translation: ${JSON.stringify(symptoms)}`);
+
+        // 3. Create Visit Record with translated data
         const visitData = {
             id: pid,
             visit_number: pid,
@@ -239,21 +357,21 @@ router.post('/patient-intake/submit', async (req, res) => {
             age: patientData.age || 0,
             gender: patientData.gender || 'Unknown',
             contactNumber: 'N/A',
-            chiefComplaint: patientData.chiefComplaint || patientData.symptoms?.[0] || 'Checkup',
+            chiefComplaint: chiefComplaint,
             department: 'General Medicine',
             triagePriority: 'Routine', // Default, could be upgraded by AI analysis
             assignedDoctorId: 'doc-123', // Default
             status: 'waiting',
-            symptoms: patientData.symptoms || [],
+            symptoms: symptoms,
             notes: summaryText,
             aiSummary: summaryText
         };
 
         const newVisit = await service.createVisit(visitData);
 
-        // 3. Persist Symptoms to DynamoDB
-        if (patientData.symptoms && patientData.symptoms.length > 0) {
-            await service.addSymptoms(newVisit.id, patientData.symptoms.map(s => ({
+        // 4. Persist Symptoms to DynamoDB (already translated)
+        if (symptoms && symptoms.length > 0) {
+            await service.addSymptoms(newVisit.id, symptoms.map(s => ({
                 text: s,
                 confidenceScore: 90,
                 severity: 'Moderate',
