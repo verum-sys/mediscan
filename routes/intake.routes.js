@@ -212,12 +212,29 @@ router.post('/patient-intake', async (req, res) => {
         INSTRUCTIONS FOR DATA EXTRACTION:
         - Extract new information from the user's latest message.
         - Merge it with the known "Current collected data".
-        - CRITICAL: All extracted values (symptoms, history, chiefComplaint, etc.) MUST be translated to standard ENGLISH Medical Terms.
-        - NEVER return Non-English text in 'extracted_data'.
-        - Example: If user says "मुझे बुखार है" (Hindi), extract "symptoms": ["Fever"] (NOT "Bukhar").
-        - Example: If user says "सीने में दर्द" (Hindi), extract "chiefComplaint": "Chest Pain".
-        - "symptoms": List distinct symptoms mentioned.
-        - "medicalHistory": List past diseases.
+        
+        ⚠️ CRITICAL TRANSLATION REQUIREMENT ⚠️
+        - ALL medical data fields MUST be translated to standard ENGLISH Medical Terms.
+        - This applies to: symptoms, chiefComplaint, medicalHistory, currentMedications, allergies
+        - NEVER return Non-English text in 'extracted_data' - ONLY English medical terminology.
+        - The patient can speak in ANY language, but you MUST extract in English.
+        
+        EXAMPLES:
+        - User says "मुझे बुखार है" (Hindi) → extract "symptoms": ["Fever"]
+        - User says "सीने में दर्द" (Hindi) → extract "chiefComplaint": "Chest Pain"
+        - User says "मुझे डायबिटीज है" (Hindi) → extract "medicalHistory": ["Diabetes"]
+        - User says "मैं पैरासिटामोल लेता हूं" (Hindi) → extract "currentMedications": ["Paracetamol"]
+        - User says "मुझे मूंगफली से एलर्जी है" (Hindi) → extract "allergies": ["Peanuts"]
+        
+        DATA FIELDS:
+        - "name": Patient's name (can be in original language/script)
+        - "age": Number only
+        - "gender": Male/Female/Other (in English)
+        - "symptoms": List distinct symptoms in English medical terms
+        - "chiefComplaint": Main complaint in English medical terms
+        - "medicalHistory": Past diseases/conditions in English medical terms
+        - "currentMedications": Current medications in English (generic or brand names)
+        - "allergies": Allergies in English medical terms
         
         Current collected data: ${JSON.stringify(currentData)}`;
 
@@ -253,15 +270,48 @@ router.post('/patient-intake', async (req, res) => {
 
         // Fallback if parsing completely fails
         if (!parsedResult) {
-            console.error("Failed to parse LLM JSON:", content);
+            console.error("Failed to parse LLM JSON. Raw content:", content);
+            // Try to extract just the "response" field if it's visible in the raw text
+            let extractedResponse = 'I apologize, could you please repeat that?';
+            try {
+                // Attempt to extract response field from malformed JSON
+                const responseMatch = content.match(/"response"\s*:\s*"([^"]+)"/);
+                if (responseMatch && responseMatch[1]) {
+                    extractedResponse = responseMatch[1];
+                }
+            } catch (e) {
+                console.error("Could not extract response from malformed JSON");
+            }
+
             parsedResult = {
-                response: content, // This might be raw JSON text, but better than crashing
+                response: extractedResponse,
                 extracted_data: {},
                 is_complete: false
             };
         }
 
         const responseText = parsedResult.response || 'I apologize, could you please repeat that?';
+
+        // Additional check: if responseText itself looks like JSON, try to parse it
+        let finalResponseText = responseText;
+        if (typeof responseText === 'string' && (responseText.trim().startsWith('{') || responseText.trim().startsWith('['))) {
+            console.warn("Response field contains JSON string, attempting to extract actual message");
+            try {
+                const innerParsed = JSON.parse(responseText);
+                if (innerParsed.response) {
+                    finalResponseText = innerParsed.response;
+                    // Also update extracted_data if present
+                    if (innerParsed.extracted_data) {
+                        parsedResult.extracted_data = innerParsed.extracted_data;
+                    }
+                    if (innerParsed.is_complete !== undefined) {
+                        parsedResult.is_complete = innerParsed.is_complete;
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to parse nested JSON in response field");
+            }
+        }
 
         // Robust Merging Strategy
         const newData = parsedResult.extracted_data || {};
@@ -281,7 +331,7 @@ router.post('/patient-intake', async (req, res) => {
         if (Array.isArray(newData.allergies)) updatedData.allergies = mergeArrays(updatedData.allergies, newData.allergies);
 
         res.json({
-            response: responseText,
+            response: finalResponseText,
             patientData: updatedData,
             isComplete: parsedResult.is_complete || false
         });
@@ -337,9 +387,12 @@ router.post('/patient-intake/submit', async (req, res) => {
             console.error("Summary generation failed", e);
         }
 
-        // 2. TRANSLATE Chief Complaint and Symptoms to English before storing
+        // 2. TRANSLATE ALL FIELDS to English before storing
         let chiefComplaint = patientData.chiefComplaint || patientData.symptoms?.[0] || 'Checkup';
         let symptoms = patientData.symptoms || [];
+        let medicalHistory = patientData.medicalHistory || [];
+        let currentMedications = patientData.currentMedications || [];
+        let allergies = patientData.allergies || [];
 
         // Translate chiefComplaint if it contains non-English text
         chiefComplaint = await translateToEnglish(chiefComplaint, llmApiKey, llmBaseUrl, llmModel);
@@ -348,6 +401,18 @@ router.post('/patient-intake/submit', async (req, res) => {
         // Translate symptoms array if any item contains non-English text
         symptoms = await translateArrayToEnglish(symptoms, llmApiKey, llmBaseUrl, llmModel);
         console.log(`Symptoms after translation: ${JSON.stringify(symptoms)}`);
+
+        // Translate medical history
+        medicalHistory = await translateArrayToEnglish(medicalHistory, llmApiKey, llmBaseUrl, llmModel);
+        console.log(`Medical History after translation: ${JSON.stringify(medicalHistory)}`);
+
+        // Translate current medications
+        currentMedications = await translateArrayToEnglish(currentMedications, llmApiKey, llmBaseUrl, llmModel);
+        console.log(`Current Medications after translation: ${JSON.stringify(currentMedications)}`);
+
+        // Translate allergies
+        allergies = await translateArrayToEnglish(allergies, llmApiKey, llmBaseUrl, llmModel);
+        console.log(`Allergies after translation: ${JSON.stringify(allergies)}`);
 
         // 3. Create Visit Record with translated data
         const visitData = {
@@ -363,6 +428,9 @@ router.post('/patient-intake/submit', async (req, res) => {
             assignedDoctorId: 'doc-123', // Default
             status: 'waiting',
             symptoms: symptoms,
+            medicalHistory: medicalHistory,
+            currentMedications: currentMedications,
+            allergies: allergies,
             notes: summaryText,
             aiSummary: summaryText
         };

@@ -280,14 +280,36 @@ export default function PatientIntake() {
 
             if (response.ok) {
                 const data = await response.json();
+
+                // Sanitize response to prevent JSON from being displayed
+                let responseText = data.response || 'I apologize, could you please repeat that?';
+
+                // Check if response looks like JSON (starts with { or [)
+                if (typeof responseText === 'string' && (responseText.trim().startsWith('{') || responseText.trim().startsWith('['))) {
+                    console.warn('Detected JSON in response field, attempting to extract message:', responseText);
+                    try {
+                        const parsed = JSON.parse(responseText);
+                        // If it's a JSON object with a response field, extract it
+                        if (parsed.response) {
+                            responseText = parsed.response;
+                        } else {
+                            // Otherwise use a fallback
+                            responseText = 'I apologize, there was an issue processing your message. Could you please repeat that?';
+                        }
+                    } catch (e) {
+                        // If parsing fails, use fallback
+                        responseText = 'I apologize, there was an issue processing your message. Could you please repeat that?';
+                    }
+                }
+
                 const assistantMessage: Message = {
                     role: 'assistant',
-                    content: data.response,
+                    content: responseText,
                     timestamp: new Date()
                 };
                 setMessages([...updatedMessages, assistantMessage]);
                 // Speak response (using current state lang). No fallback for dynamic content yet.
-                speak(data.response);
+                speak(responseText);
                 // Handle snake_case backend response
                 const pData = data.patientData || data.extracted_data;
                 const complete = data.isComplete || data.is_complete;
