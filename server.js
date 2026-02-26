@@ -155,7 +155,25 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
                     const content = aiResult.choices[0]?.message?.content || '{}';
 
                     try {
-                        const parsedData = JSON.parse(content);
+                        let cleanJson = content.trim();
+                        if (cleanJson.startsWith('```')) {
+                            cleanJson = cleanJson.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '').trim();
+                        }
+                        if (!cleanJson.startsWith('{')) {
+                            const s = cleanJson.indexOf('{');
+                            const e = cleanJson.lastIndexOf('}');
+                            if (s !== -1 && e !== -1 && e > s) cleanJson = cleanJson.substring(s, e + 1);
+                        }
+
+                        let parsedData;
+                        try {
+                            parsedData = JSON.parse(cleanJson);
+                        } catch (e) {
+                            // Try removing trailing commas
+                            const noTrailing = cleanJson.replace(/,\s*([\]}])/g, '$1');
+                            parsedData = JSON.parse(noTrailing);
+                        }
+
                         cleanedText = parsedData.formatted_text || rawText;
 
                         // Store parsed data for later use

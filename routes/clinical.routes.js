@@ -230,26 +230,32 @@ router.post('/process-voice', async (req, res) => {
         const aiResult = await aiResponse.json();
         let content = aiResult.choices[0]?.message?.content || '{}';
 
-        let cleanContent = content.trim();
-        if (cleanContent.startsWith('```')) {
-            cleanContent = cleanContent.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
-        }
-        if (!cleanContent.startsWith('{') && !cleanContent.startsWith('[') && cleanContent.indexOf('{') !== -1) {
-            const startObj = cleanContent.indexOf('{');
-            const startArr = cleanContent.indexOf('[');
-            const start = (startObj !== -1 && startArr !== -1) ? Math.min(startObj, startArr) : Math.max(startObj, startArr);
-            if (start !== -1) {
-                const endObj = cleanContent.lastIndexOf('}');
-                const endArr = cleanContent.lastIndexOf(']');
-                const end = Math.max(endObj, endArr);
-                if (end !== -1) {
-                    cleanContent = cleanContent.substring(start, end + 1);
+        const robustParse = (str) => {
+            if (!str) return null;
+            let clean = str.trim();
+            if (clean.startsWith('```')) {
+                clean = clean.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '').trim();
+            }
+            if (!clean.startsWith('{')) {
+                const s = clean.indexOf('{');
+                const e = clean.lastIndexOf('}');
+                if (s !== -1 && e !== -1 && e > s) clean = clean.substring(s, e + 1);
+            }
+            try {
+                return JSON.parse(clean);
+            } catch (e) {
+                try {
+                    const noTrailing = clean.replace(/,\s*([\]}])/g, '$1');
+                    return JSON.parse(noTrailing);
+                } catch (e2) {
+                    return null;
                 }
             }
-        }
+        };
 
         try {
-            const clinicalData = JSON.parse(cleanContent);
+            const clinicalData = robustParse(content);
+            if (!clinicalData) throw new Error('Could not parse AI response');
 
             // Create visit with extracted data
             const visit = await service.createVisit({

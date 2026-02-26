@@ -7,32 +7,45 @@ const router = express.Router();
 /**
  * Robustly parses JSON from LLM output, handling markdown code blocks and extra text.
  */
+/**
+ * Robustly parses JSON from LLM output, handling markdown code blocks, trailing commas, and extra text.
+ */
 const parseLLMResponse = (content) => {
-    try {
-        // 1. Try direct parse
-        return JSON.parse(content);
-    } catch (e) {
-        // 2. Try extracting from markdown
-        try {
-            const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
-            if (cleanContent.startsWith('{')) {
-                return JSON.parse(cleanContent);
-            }
-        } catch (e2) { }
+    if (!content) return null;
 
-        // 3. Try finding first { and last }
-        try {
-            const start = content.indexOf('{');
-            const end = content.lastIndexOf('}');
-            if (start !== -1 && end !== -1 && end > start) {
-                const jsonStr = content.substring(start, end + 1);
-                return JSON.parse(jsonStr);
-            }
-        } catch (e3) {
-            console.error("JSON Parse inner error:", e3.message);
+    let cleanContent = content.trim();
+
+    // 1. Remove Markdown code blocks if present
+    if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '').trim();
+    }
+
+    // 2. Try identifying the JSON object if there's surrounding text
+    if (!cleanContent.startsWith('{')) {
+        const start = cleanContent.indexOf('{');
+        const end = cleanContent.lastIndexOf('}');
+        if (start !== -1 && end !== -1 && end > start) {
+            cleanContent = cleanContent.substring(start, end + 1);
         }
     }
-    return null;
+
+    // 3. Robust parsing helper
+    const robustParse = (str) => {
+        try {
+            // Standard parse
+            return JSON.parse(str);
+        } catch (e) {
+            try {
+                // Remove trailing commas and try again
+                const noTrailingCommas = str.replace(/,\s*([\]}])/g, '$1');
+                return JSON.parse(noTrailingCommas);
+            } catch (e2) {
+                return null;
+            }
+        }
+    };
+
+    return robustParse(cleanContent);
 };
 
 // Patient Intake Chat Endpoint
@@ -126,7 +139,7 @@ router.post('/patient-intake', async (req, res) => {
                     { role: 'system', content: systemPrompt },
                     ...messages.map(m => ({ role: m.role, content: m.content }))
                 ],
-                // response_format: { type: "json_object" }
+                response_format: { type: "json_object" }
             })
         });
 
