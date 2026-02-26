@@ -56,6 +56,7 @@ interface PatientHistory {
 interface Visit {
     id: string;
     visit_number: string;
+    patient_name: string;
     facility_name: string;
     department: string;
     provider_name: string;
@@ -508,10 +509,11 @@ export default function VisitDetail() {
                                 <div className="group cursor-pointer" onClick={() => setIsEditingHeader(true)}>
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <h1 className="text-2xl md:text-3xl font-bold group-hover:text-primary transition-colors tracking-tight">
-                                            {visit.visit_number}
+                                            {visit.patient_name || visit.visit_number}
                                         </h1>
                                         <Edit className="h-4 w-4 opacity-0 group-hover:opacity-50" />
-                                        <div className="flex gap-2 md:hidden">
+                                        <div className="flex gap-2">
+                                            <Badge variant="outline" className="text-xs">{visit.visit_number}</Badge>
                                             {visit.criticality === 'Critical' && (
                                                 <Badge variant="destructive" className="h-5 px-1.5 text-[10px] animate-pulse">Critical</Badge>
                                             )}
@@ -617,10 +619,16 @@ export default function VisitDetail() {
 
                 {/* Chief Complaint */}
                 <Card className="glass-card p-4 md:p-6 mb-6">
-                    <h2 className="text-xl font-semibold mb-3">Chief Complaint</h2>
+                    <div className="flex justify-between items-start mb-3">
+                        <h2 className="text-xl font-semibold">Chief Complaint</h2>
+                        <div className="text-sm font-medium text-primary">
+                            Patient: {visit.patient_name || "Unknown"}
+                        </div>
+                    </div>
                     <p className="text-lg">{safeRender(visit.chief_complaint) || "Not specified"}</p>
-                    <div className="mt-4 text-sm text-muted-foreground">
-                        Provider: {visit.provider_name || "N/A"} • {new Date(visit.created_at).toLocaleString()}
+                    <div className="mt-4 text-sm text-muted-foreground flex items-center gap-2">
+                        <Activity className="h-4 w-4" />
+                        Provider: {visit.provider_name || "AI Triage Assistant"} • {new Date(visit.created_at).toLocaleString()}
                     </div>
                 </Card>
 

@@ -178,18 +178,41 @@ router.post('/patient-intake', async (req, res) => {
         const newData = parsedResult.extracted_data || {};
         const updatedData = { ...currentData };
 
-        if (newData.name) updatedData.name = newData.name;
-        if (newData.age) updatedData.age = newData.age;
-        if (newData.gender) updatedData.gender = newData.gender;
-        if (newData.chiefComplaint) updatedData.chiefComplaint = newData.chiefComplaint;
+        // Case-insensitive / Multi-key extraction
+        const nameKey = Object.keys(newData).find(k => k.toLowerCase() === 'name');
+        if (nameKey) updatedData.name = newData[nameKey];
+
+        const ageKey = Object.keys(newData).find(k => k.toLowerCase() === 'age');
+        if (ageKey) updatedData.age = newData[ageKey];
+
+        const genderKey = Object.keys(newData).find(k => k.toLowerCase() === 'gender');
+        if (genderKey) updatedData.gender = newData[genderKey];
+
+        const complaintKey = Object.keys(newData).find(k => k.toLowerCase() === 'chiefcomplaint' || k.toLowerCase() === 'complaint');
+        if (complaintKey) updatedData.chiefComplaint = newData[complaintKey];
 
         // Helper to merge arrays uniquely
         const mergeArrays = (oldArr, newArr) => Array.from(new Set([...(oldArr || []), ...(newArr || [])]));
 
-        if (Array.isArray(newData.symptoms)) updatedData.symptoms = mergeArrays(updatedData.symptoms, newData.symptoms);
-        if (Array.isArray(newData.medicalHistory)) updatedData.medicalHistory = mergeArrays(updatedData.medicalHistory, newData.medicalHistory);
-        if (Array.isArray(newData.currentMedications)) updatedData.currentMedications = mergeArrays(updatedData.currentMedications, newData.currentMedications);
-        if (Array.isArray(newData.allergies)) updatedData.allergies = mergeArrays(updatedData.allergies, newData.allergies);
+        const symptomsKey = Object.keys(newData).find(k => k.toLowerCase() === 'symptoms');
+        if (symptomsKey && Array.isArray(newData[symptomsKey])) {
+            updatedData.symptoms = mergeArrays(updatedData.symptoms, newData[symptomsKey]);
+        }
+
+        const historyKey = Object.keys(newData).find(k => k.toLowerCase() === 'medicalhistory' || k.toLowerCase() === 'history');
+        if (historyKey && Array.isArray(newData[historyKey])) {
+            updatedData.medicalHistory = mergeArrays(updatedData.medicalHistory, newData[historyKey]);
+        }
+
+        const medsKey = Object.keys(newData).find(k => k.toLowerCase() === 'currentmedications' || k.toLowerCase() === 'medications');
+        if (medsKey && Array.isArray(newData[medsKey])) {
+            updatedData.currentMedications = mergeArrays(updatedData.currentMedications, newData[medsKey]);
+        }
+
+        const allergiesKey = Object.keys(newData).find(k => k.toLowerCase() === 'allergies');
+        if (allergiesKey && Array.isArray(newData[allergiesKey])) {
+            updatedData.allergies = mergeArrays(updatedData.allergies, newData[allergiesKey]);
+        }
 
         res.json({
             response: responseText,
@@ -255,8 +278,9 @@ router.post('/patient-intake/submit', async (req, res) => {
             contactNumber: 'N/A',
             chiefComplaint: patientData.chiefComplaint || patientData.symptoms?.[0] || 'Checkup',
             department: 'General Medicine',
-            triagePriority: 'Routine', // Default, could be upgraded by AI analysis
-            assignedDoctorId: 'doc-123', // Default
+            providerName: 'AI Triage Assistant', // Fix: Added missing provider name
+            triagePriority: 'Routine',
+            assignedDoctorId: 'doc-123',
             status: 'waiting',
             symptoms: patientData.symptoms || [],
             notes: summaryText,
@@ -272,6 +296,15 @@ router.post('/patient-intake/submit', async (req, res) => {
                 confidenceScore: 90,
                 severity: 'Moderate',
                 duration: 'Not specified',
+                source: 'patient_intake_ai'
+            })));
+        }
+
+        // 4. Persist Medications to DynamoDB (Fix: Was missing)
+        if (patientData.currentMedications && patientData.currentMedications.length > 0) {
+            await service.addMedications(newVisit.id, patientData.currentMedications.map(m => ({
+                name: m,
+                date: new Date().toLocaleDateString(),
                 source: 'patient_intake_ai'
             })));
         }
