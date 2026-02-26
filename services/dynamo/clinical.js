@@ -279,7 +279,7 @@ export const generateClinicalAnalysis = async (visitId) => {
                         3. investigative_suggestions: [{ Test_Name, Type (Essential/Optional), Ruled_Out_Test, Confidence_Score }]
                         
                         Infer missing details like Age/Sex from context if possible, or mark as "Unknown".
-                        For 'medications', extract all drugs mentioned in the patient notes, medical history, or recommended in the treatment plan.
+                        For 'medications', extract all drugs mentioned in the patient notes or medical history. IMPORTANT: If none are mentioned, you MUST proactively suggest 1-3 appropriate standard medications (including Name, Type, Dosage, Duration, Frequency) to treat the Chief Complaint and Symptoms.
                         IMPORTANT: Translate ALL output values to ENGLISH.
                         Return ONLY valid JSON.`
                     },
