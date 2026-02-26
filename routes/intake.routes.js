@@ -180,16 +180,25 @@ router.post('/patient-intake', async (req, res) => {
 
         // Case-insensitive / Multi-key extraction
         const nameKey = Object.keys(newData).find(k => k.toLowerCase() === 'name');
-        if (nameKey) updatedData.name = newData[nameKey];
+        if (nameKey && newData[nameKey]) updatedData.name = newData[nameKey]; // Only update if truthy
 
         const ageKey = Object.keys(newData).find(k => k.toLowerCase() === 'age');
-        if (ageKey) updatedData.age = newData[ageKey];
+        if (ageKey && newData[ageKey]) updatedData.age = newData[ageKey]; // Only update if truthy
 
         const genderKey = Object.keys(newData).find(k => k.toLowerCase() === 'gender');
-        if (genderKey) updatedData.gender = newData[genderKey];
+        if (genderKey && newData[genderKey]) updatedData.gender = newData[genderKey]; // Only update if truthy
 
         const complaintKey = Object.keys(newData).find(k => k.toLowerCase() === 'chiefcomplaint' || k.toLowerCase() === 'complaint');
-        if (complaintKey) updatedData.chiefComplaint = newData[complaintKey];
+        if (complaintKey && newData[complaintKey]) {
+            // Merge complaints if they are different and meaningful
+            if (updatedData.chiefComplaint && updatedData.chiefComplaint !== newData[complaintKey]) {
+                if (!updatedData.chiefComplaint.toLowerCase().includes(newData[complaintKey].toLowerCase())) {
+                    updatedData.chiefComplaint = `${updatedData.chiefComplaint}, ${newData[complaintKey]}`;
+                }
+            } else {
+                updatedData.chiefComplaint = newData[complaintKey];
+            }
+        }
 
         // Helper to merge arrays uniquely
         const mergeArrays = (oldArr, newArr) => Array.from(new Set([...(oldArr || []), ...(newArr || [])]));
@@ -278,7 +287,7 @@ router.post('/patient-intake/submit', async (req, res) => {
             contactNumber: 'N/A',
             chiefComplaint: patientData.chiefComplaint || patientData.symptoms?.[0] || 'Checkup',
             department: 'General Medicine',
-            providerName: 'AI Triage Assistant', // Fix: Added missing provider name
+            providerName: 'AI Triage Assistant',
             triagePriority: 'Routine',
             assignedDoctorId: 'doc-123',
             status: 'waiting',
@@ -300,7 +309,7 @@ router.post('/patient-intake/submit', async (req, res) => {
             })));
         }
 
-        // 4. Persist Medications to DynamoDB (Fix: Was missing)
+        // 4. Persist Medications to DynamoDB
         if (patientData.currentMedications && patientData.currentMedications.length > 0) {
             await service.addMedications(newVisit.id, patientData.currentMedications.map(m => ({
                 name: m,
