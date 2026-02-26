@@ -454,6 +454,14 @@ export default function VisitDetail() {
         return "text-red-500";
     };
 
+    const safeRender = (val: any): string => {
+        if (val === null || val === undefined) return "";
+        if (typeof val === 'string' || typeof val === 'number') return String(val);
+        if (Array.isArray(val)) return val.join(', ');
+        if (typeof val === 'object') return Object.values(val).join(', ');
+        return String(val);
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-8">
             <div className="container mx-auto px-6 max-w-7xl">
@@ -610,7 +618,7 @@ export default function VisitDetail() {
                 {/* Chief Complaint */}
                 <Card className="glass-card p-4 md:p-6 mb-6">
                     <h2 className="text-xl font-semibold mb-3">Chief Complaint</h2>
-                    <p className="text-lg">{visit.chief_complaint || "Not specified"}</p>
+                    <p className="text-lg">{safeRender(visit.chief_complaint) || "Not specified"}</p>
                     <div className="mt-4 text-sm text-muted-foreground">
                         Provider: {visit.provider_name || "N/A"} • {new Date(visit.created_at).toLocaleString()}
                     </div>
@@ -728,11 +736,11 @@ export default function VisitDetail() {
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1">
-                                        <p className="font-medium text-sm md:text-base">{symptom.symptom_text}</p>
+                                        <p className="font-medium text-sm md:text-base">{safeRender(symptom.symptom_text)}</p>
                                         <div className="flex flex-wrap gap-2 md:gap-4 mt-2 text-xs md:text-sm text-muted-foreground">
-                                            {symptom.severity && <span>Severity: {symptom.severity}</span>}
-                                            {symptom.onset && <span>Onset: {symptom.onset}</span>}
-                                            {symptom.duration && <span>Duration: {symptom.duration}</span>}
+                                            {symptom.severity && <span>Severity: {safeRender(symptom.severity)}</span>}
+                                            {symptom.onset && <span>Onset: {safeRender(symptom.onset)}</span>}
+                                            {symptom.duration && <span>Duration: {safeRender(symptom.duration)}</span>}
                                         </div>
                                     </div>
                                     <div className="flex flex-col md:flex-row items-end md:items-center gap-2">
@@ -993,24 +1001,22 @@ export default function VisitDetail() {
                                         <tbody className="divide-y">
                                             <tr className="bg-background">
                                                 <td className="px-4 py-3 font-medium">
-                                                    {clinicalAnalysis.patient_analysis.Age}/{clinicalAnalysis.patient_analysis.Sex}
+                                                    {safeRender(clinicalAnalysis.patient_analysis.Age)}/{safeRender(clinicalAnalysis.patient_analysis.Sex)}
                                                 </td>
-                                                <td className="px-4 py-3">{clinicalAnalysis.patient_analysis.Chief_Complaint}</td>
+                                                <td className="px-4 py-3">{safeRender(clinicalAnalysis.patient_analysis.Chief_Complaint)}</td>
                                                 <td className="px-4 py-3">
-                                                    {Array.isArray(clinicalAnalysis.patient_analysis.Symptoms)
-                                                        ? clinicalAnalysis.patient_analysis.Symptoms.join(', ')
-                                                        : clinicalAnalysis.patient_analysis.Symptoms}
+                                                    {safeRender(clinicalAnalysis.patient_analysis.Symptoms)}
                                                 </td>
-                                                <td className="px-4 py-3">{clinicalAnalysis.patient_analysis.Treatment_Plan}</td>
+                                                <td className="px-4 py-3">{safeRender(clinicalAnalysis.patient_analysis.Treatment_Plan)}</td>
                                                 <td className="px-4 py-3">
-                                                    <Badge variant="outline">{clinicalAnalysis.patient_analysis.Effectiveness_Prediction}</Badge>
+                                                    <Badge variant="outline">{safeRender(clinicalAnalysis.patient_analysis.Effectiveness_Prediction)}</Badge>
                                                 </td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">
-                                    Note: {clinicalAnalysis.patient_analysis.Notes}
+                                    Note: {safeRender(clinicalAnalysis.patient_analysis.Notes)}
                                 </p>
                             </div>
 
