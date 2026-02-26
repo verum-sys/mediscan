@@ -47,11 +47,29 @@ export const generateDifferentials = async (visitId) => {
         });
 
         const result = await response.json();
-        let content = result.choices[0]?.message?.content;
+        let content = result.choices[0]?.message?.content || "{}";
         let differentials = [];
 
         try {
-            const parsed = JSON.parse(content);
+            let cleanContent = content.trim();
+            if (cleanContent.startsWith('```')) {
+                cleanContent = cleanContent.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
+            }
+            if (!cleanContent.startsWith('{') && !cleanContent.startsWith('[') && cleanContent.indexOf('{') !== -1) {
+                const startObj = cleanContent.indexOf('{');
+                const startArr = cleanContent.indexOf('[');
+                const start = (startObj !== -1 && startArr !== -1) ? Math.min(startObj, startArr) : Math.max(startObj, startArr);
+                if (start !== -1) {
+                    const endObj = cleanContent.lastIndexOf('}');
+                    const endArr = cleanContent.lastIndexOf(']');
+                    const end = Math.max(endObj, endArr);
+                    if (end !== -1) {
+                        cleanContent = cleanContent.substring(start, end + 1);
+                    }
+                }
+            }
+
+            const parsed = JSON.parse(cleanContent);
             if (Array.isArray(parsed)) differentials = parsed;
             else if (parsed.differentials) differentials = parsed.differentials;
             else {
@@ -279,8 +297,20 @@ export const generateClinicalAnalysis = async (visitId) => {
         }
 
         const result = await response.json();
-        const content = result.choices[0]?.message?.content;
-        const parsed = JSON.parse(content);
+        let content = result.choices[0]?.message?.content || "{}";
+
+        let cleanContent = content.trim();
+        if (cleanContent.startsWith('```')) {
+            cleanContent = cleanContent.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
+        }
+        if (cleanContent.startsWith('{') === false && cleanContent.indexOf('{') !== -1) {
+            cleanContent = cleanContent.substring(cleanContent.indexOf('{'));
+            if (cleanContent.lastIndexOf('}') !== -1) {
+                cleanContent = cleanContent.substring(0, cleanContent.lastIndexOf('}') + 1);
+            }
+        }
+
+        const parsed = JSON.parse(cleanContent);
 
         // Enrich with Logistics Mock Data
         if (parsed.investigative_suggestions) {
@@ -447,8 +477,27 @@ Return ONLY valid JSON. Provide 1-3 most relevant codes.`
         }
 
         const result = await response.json();
-        const content = result.choices[0]?.message?.content;
-        const parsed = JSON.parse(content);
+        let content = result.choices[0]?.message?.content || "{}";
+
+        let cleanContent = content.trim();
+        if (cleanContent.startsWith('```')) {
+            cleanContent = cleanContent.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
+        }
+        if (!cleanContent.startsWith('{') && !cleanContent.startsWith('[') && cleanContent.indexOf('{') !== -1) {
+            const startObj = cleanContent.indexOf('{');
+            const startArr = cleanContent.indexOf('[');
+            const start = (startObj !== -1 && startArr !== -1) ? Math.min(startObj, startArr) : Math.max(startObj, startArr);
+            if (start !== -1) {
+                const endObj = cleanContent.lastIndexOf('}');
+                const endArr = cleanContent.lastIndexOf(']');
+                const end = Math.max(endObj, endArr);
+                if (end !== -1) {
+                    cleanContent = cleanContent.substring(start, end + 1);
+                }
+            }
+        }
+
+        const parsed = JSON.parse(cleanContent);
 
         let classifications = [];
         if (Array.isArray(parsed.classifications)) {

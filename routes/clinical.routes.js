@@ -228,10 +228,28 @@ router.post('/process-voice', async (req, res) => {
         }
 
         const aiResult = await aiResponse.json();
-        const content = aiResult.choices[0]?.message?.content || '{}';
+        let content = aiResult.choices[0]?.message?.content || '{}';
+
+        let cleanContent = content.trim();
+        if (cleanContent.startsWith('```')) {
+            cleanContent = cleanContent.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
+        }
+        if (!cleanContent.startsWith('{') && !cleanContent.startsWith('[') && cleanContent.indexOf('{') !== -1) {
+            const startObj = cleanContent.indexOf('{');
+            const startArr = cleanContent.indexOf('[');
+            const start = (startObj !== -1 && startArr !== -1) ? Math.min(startObj, startArr) : Math.max(startObj, startArr);
+            if (start !== -1) {
+                const endObj = cleanContent.lastIndexOf('}');
+                const endArr = cleanContent.lastIndexOf(']');
+                const end = Math.max(endObj, endArr);
+                if (end !== -1) {
+                    cleanContent = cleanContent.substring(start, end + 1);
+                }
+            }
+        }
 
         try {
-            const clinicalData = JSON.parse(content);
+            const clinicalData = JSON.parse(cleanContent);
 
             // Create visit with extracted data
             const visit = await service.createVisit({
