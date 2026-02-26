@@ -287,7 +287,7 @@ router.post('/patient-intake/submit', async (req, res) => {
             contactNumber: 'N/A',
             chiefComplaint: patientData.chiefComplaint || patientData.symptoms?.[0] || 'Checkup',
             department: 'General Medicine',
-            providerName: 'AI Triage Assistant',
+            providerName: patientData.name || 'Self-Intake',
             triagePriority: 'Routine',
             assignedDoctorId: 'doc-123',
             status: 'waiting',
