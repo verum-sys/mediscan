@@ -35,112 +35,6 @@ const parseLLMResponse = (content) => {
     return null;
 };
 
-/**
- * Detects if text contains non-ASCII characters (likely non-English)
- */
-const containsNonEnglish = (text) => {
-    if (!text || typeof text !== 'string') return false;
-    // Check for non-ASCII characters (Hindi, Bengali, Tamil, etc. are outside ASCII range)
-    return /[^\x00-\x7F]/.test(text);
-};
-
-/**
- * Translates text to English using LLM if it contains non-English characters
- */
-const translateToEnglish = async (text, llmApiKey, llmBaseUrl, llmModel) => {
-    if (!text || !containsNonEnglish(text)) {
-        return text; // Already English or empty
-    }
-
-    try {
-        const response = await fetch(`${llmBaseUrl}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${llmApiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: llmModel,
-                messages: [
-                    {
-                        role: 'system',
-                        content: `You are a medical translator. Translate the following text to English medical terminology. 
-                        Output ONLY the English translation, nothing else.
-                        If it's already in English, output it as is.
-                        Be accurate and use proper medical terms.`
-                    },
-                    { role: 'user', content: text }
-                ]
-            })
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            const translated = result.choices[0]?.message?.content?.trim();
-            if (translated) {
-                console.log(`Translated "${text}" to "${translated}"`);
-                return translated;
-            }
-        }
-    } catch (e) {
-        console.error('Translation error:', e);
-    }
-    return text; // Return original if translation fails
-};
-
-/**
- * Translates an array of strings to English
- */
-const translateArrayToEnglish = async (arr, llmApiKey, llmBaseUrl, llmModel) => {
-    if (!Array.isArray(arr) || arr.length === 0) return arr;
-
-    // Check if any item needs translation
-    const needsTranslation = arr.some(item => containsNonEnglish(item));
-    if (!needsTranslation) return arr;
-
-    try {
-        const response = await fetch(`${llmBaseUrl}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${llmApiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: llmModel,
-                messages: [
-                    {
-                        role: 'system',
-                        content: `You are a medical translator. Translate each item in the following list to English medical terminology.
-                        Output ONLY a JSON array of translated strings, nothing else.
-                        Example input: ["बुखार", "खांसी"]
-                        Example output: ["Fever", "Cough"]`
-                    },
-                    { role: 'user', content: JSON.stringify(arr) }
-                ]
-            })
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            const translated = result.choices[0]?.message?.content?.trim();
-            if (translated) {
-                try {
-                    const parsedArr = JSON.parse(translated);
-                    if (Array.isArray(parsedArr)) {
-                        console.log(`Translated array from ${JSON.stringify(arr)} to ${JSON.stringify(parsedArr)}`);
-                        return parsedArr;
-                    }
-                } catch (parseErr) {
-                    console.error('Failed to parse translated array:', parseErr);
-                }
-            }
-        }
-    } catch (e) {
-        console.error('Array translation error:', e);
-    }
-    return arr; // Return original if translation fails
-};
-
 // Patient Intake Chat Endpoint
 router.post('/patient-intake', async (req, res) => {
     try {
@@ -212,29 +106,11 @@ router.post('/patient-intake', async (req, res) => {
         INSTRUCTIONS FOR DATA EXTRACTION:
         - Extract new information from the user's latest message.
         - Merge it with the known "Current collected data".
-        
-        ⚠️ CRITICAL TRANSLATION REQUIREMENT ⚠️
-        - ALL medical data fields MUST be translated to standard ENGLISH Medical Terms.
-        - This applies to: symptoms, chiefComplaint, medicalHistory, currentMedications, allergies
-        - NEVER return Non-English text in 'extracted_data' - ONLY English medical terminology.
-        - The patient can speak in ANY language, but you MUST extract in English.
-        
-        EXAMPLES:
-        - User says "मुझे बुखार है" (Hindi) → extract "symptoms": ["Fever"]
-        - User says "सीने में दर्द" (Hindi) → extract "chiefComplaint": "Chest Pain"
-        - User says "मुझे डायबिटीज है" (Hindi) → extract "medicalHistory": ["Diabetes"]
-        - User says "मैं पैरासिटामोल लेता हूं" (Hindi) → extract "currentMedications": ["Paracetamol"]
-        - User says "मुझे मूंगफली से एलर्जी है" (Hindi) → extract "allergies": ["Peanuts"]
-        
-        DATA FIELDS:
-        - "name": Patient's name (can be in original language/script)
-        - "age": Number only
-        - "gender": Male/Female/Other (in English)
-        - "symptoms": List distinct symptoms in English medical terms
-        - "chiefComplaint": Main complaint in English medical terms
-        - "medicalHistory": Past diseases/conditions in English medical terms
-        - "currentMedications": Current medications in English (generic or brand names)
-        - "allergies": Allergies in English medical terms
+        - CRITICAL: All extracted values (symptoms, history, etc.) MUST be translated to standard ENGLISH Medical Terms.
+        - Example: If user says "मुझे बुखार है" (Hindi), extract "symptoms": ["Fever"].
+        - Example: If user says "सूखी खांसी" (Hindi), extract "symptoms": ["Dry Cough"].
+        - "symptoms": List distinct symptoms mentioned.
+        - "medicalHistory": List past diseases.
         
         Current collected data: ${JSON.stringify(currentData)}`;
 
@@ -270,48 +146,15 @@ router.post('/patient-intake', async (req, res) => {
 
         // Fallback if parsing completely fails
         if (!parsedResult) {
-            console.error("Failed to parse LLM JSON. Raw content:", content);
-            // Try to extract just the "response" field if it's visible in the raw text
-            let extractedResponse = 'I apologize, could you please repeat that?';
-            try {
-                // Attempt to extract response field from malformed JSON
-                const responseMatch = content.match(/"response"\s*:\s*"([^"]+)"/);
-                if (responseMatch && responseMatch[1]) {
-                    extractedResponse = responseMatch[1];
-                }
-            } catch (e) {
-                console.error("Could not extract response from malformed JSON");
-            }
-
+            console.error("Failed to parse LLM JSON:", content);
             parsedResult = {
-                response: extractedResponse,
+                response: content, // This might be raw JSON text, but better than crashing
                 extracted_data: {},
                 is_complete: false
             };
         }
 
         const responseText = parsedResult.response || 'I apologize, could you please repeat that?';
-
-        // Additional check: if responseText itself looks like JSON, try to parse it
-        let finalResponseText = responseText;
-        if (typeof responseText === 'string' && (responseText.trim().startsWith('{') || responseText.trim().startsWith('['))) {
-            console.warn("Response field contains JSON string, attempting to extract actual message");
-            try {
-                const innerParsed = JSON.parse(responseText);
-                if (innerParsed.response) {
-                    finalResponseText = innerParsed.response;
-                    // Also update extracted_data if present
-                    if (innerParsed.extracted_data) {
-                        parsedResult.extracted_data = innerParsed.extracted_data;
-                    }
-                    if (innerParsed.is_complete !== undefined) {
-                        parsedResult.is_complete = innerParsed.is_complete;
-                    }
-                }
-            } catch (e) {
-                console.error("Failed to parse nested JSON in response field");
-            }
-        }
 
         // Robust Merging Strategy
         const newData = parsedResult.extracted_data || {};
@@ -331,7 +174,7 @@ router.post('/patient-intake', async (req, res) => {
         if (Array.isArray(newData.allergies)) updatedData.allergies = mergeArrays(updatedData.allergies, newData.allergies);
 
         res.json({
-            response: finalResponseText,
+            response: responseText,
             patientData: updatedData,
             isComplete: parsedResult.is_complete || false
         });
@@ -368,8 +211,7 @@ router.post('/patient-intake/submit', async (req, res) => {
                         {
                             role: 'system',
                             content: `Summarize the following medical intake conversation into EXACTLY 2 concise lines in ENGLISH. 
-                            Even if the conversation is in Hindi, Spanish, or ANY other language, the output summary MUST be in ENGLISH.
-                            Do not use the original language in the summary. Translate everything.
+                            Even if the conversation is in Hindi or another language, the summary MUST be in ENGLISH.
                             Include: Name, Age, Gender, Chief Complaint (Translate to English), Symptom specifics, and History/Meds. 
                             Start directly with the details.`
                         },
@@ -387,59 +229,27 @@ router.post('/patient-intake/submit', async (req, res) => {
             console.error("Summary generation failed", e);
         }
 
-        // 2. TRANSLATE ALL FIELDS to English before storing
-        let chiefComplaint = patientData.chiefComplaint || patientData.symptoms?.[0] || 'Checkup';
-        let symptoms = patientData.symptoms || [];
-        let medicalHistory = patientData.medicalHistory || [];
-        let currentMedications = patientData.currentMedications || [];
-        let allergies = patientData.allergies || [];
-
-        // Translate chiefComplaint if it contains non-English text
-        chiefComplaint = await translateToEnglish(chiefComplaint, llmApiKey, llmBaseUrl, llmModel);
-        console.log(`Chief Complaint after translation: ${chiefComplaint}`);
-
-        // Translate symptoms array if any item contains non-English text
-        symptoms = await translateArrayToEnglish(symptoms, llmApiKey, llmBaseUrl, llmModel);
-        console.log(`Symptoms after translation: ${JSON.stringify(symptoms)}`);
-
-        // Translate medical history
-        medicalHistory = await translateArrayToEnglish(medicalHistory, llmApiKey, llmBaseUrl, llmModel);
-        console.log(`Medical History after translation: ${JSON.stringify(medicalHistory)}`);
-
-        // Translate current medications
-        currentMedications = await translateArrayToEnglish(currentMedications, llmApiKey, llmBaseUrl, llmModel);
-        console.log(`Current Medications after translation: ${JSON.stringify(currentMedications)}`);
-
-        // Translate allergies
-        allergies = await translateArrayToEnglish(allergies, llmApiKey, llmBaseUrl, llmModel);
-        console.log(`Allergies after translation: ${JSON.stringify(allergies)}`);
-
-        // 3. Create Visit Record with translated data
+        // 2. Create Visit Record
         const visitData = {
-            id: pid,
-            visit_number: pid,
             patientName: patientData.name || 'Unknown',
             age: patientData.age || 0,
             gender: patientData.gender || 'Unknown',
             contactNumber: 'N/A',
-            chiefComplaint: chiefComplaint,
+            chiefComplaint: patientData.chiefComplaint || patientData.symptoms?.[0] || 'Checkup',
             department: 'General Medicine',
             triagePriority: 'Routine', // Default, could be upgraded by AI analysis
             assignedDoctorId: 'doc-123', // Default
             status: 'waiting',
-            symptoms: symptoms,
-            medicalHistory: medicalHistory,
-            currentMedications: currentMedications,
-            allergies: allergies,
+            symptoms: patientData.symptoms || [],
             notes: summaryText,
             aiSummary: summaryText
         };
 
         const newVisit = await service.createVisit(visitData);
 
-        // 4. Persist Symptoms to DynamoDB (already translated)
-        if (symptoms && symptoms.length > 0) {
-            await service.addSymptoms(newVisit.id, symptoms.map(s => ({
+        // 3. Persist Symptoms to DynamoDB
+        if (patientData.symptoms && patientData.symptoms.length > 0) {
+            await service.addSymptoms(newVisit.id, patientData.symptoms.map(s => ({
                 text: s,
                 confidenceScore: 90,
                 severity: 'Moderate',
