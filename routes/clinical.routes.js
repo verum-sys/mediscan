@@ -170,7 +170,7 @@ router.post('/process-voice', async (req, res) => {
 
         const llmApiKey = process.env.LLM_API_KEY;
         const llmBaseUrl = process.env.LLM_BASE_URL || 'https://api.cerebras.ai/v1';
-        const llmModel = process.env.LLM_MODEL || 'llama-3.3-70b';
+        const llmModel = process.env.LLM_MODEL || 'llama3.1-8b';
 
         if (!llmApiKey) {
             return res.status(500).json({ error: 'LLM API key not configured' });

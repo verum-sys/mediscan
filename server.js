@@ -99,7 +99,7 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
 
             const llmApiKey = process.env.LLM_API_KEY;
             const llmBaseUrl = process.env.LLM_BASE_URL || 'https://api.cerebras.ai/v1';
-            const llmModel = process.env.LLM_MODEL || 'llama-3.3-70b';
+            const llmModel = process.env.LLM_MODEL || 'llama3.1-8b';
 
             if (!llmApiKey) {
                 console.warn("LLM_API_KEY missing, skipping LLM cleanup");
@@ -238,7 +238,7 @@ app.post('/process-document', upload.single('file'), async (req, res) => {
             try {
                 await createLLMTask({
                     document_id: document.id,
-                    model: process.env.LLM_MODEL || 'llama-3.3-70b',
+                    model: process.env.LLM_MODEL || 'llama3.1-8b',
                     status: 'completed',
                     output: cleanedText,
                 });

@@ -23,7 +23,7 @@ export const docClient = DynamoDBDocumentClient.from(client);
 
 export const LLM_API_KEY = process.env.LLM_API_KEY;
 export const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://api.cerebras.ai/v1';
-export const LLM_MODEL = process.env.LLM_MODEL || 'llama-3.3-70b';
+export const LLM_MODEL = process.env.LLM_MODEL || 'llama3.1-8b';
 
 // --- Helper Functions ---
 export const scanTable = async (tableName) => {
