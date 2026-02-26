@@ -147,7 +147,7 @@ export const getMockQueueData = () => [
         id: 'mock-inc-1',
         visit_number: 'OPD-2024-INC01',
         patient_name: 'Unknown Male',
-        chief_complaint: '', // Empty for incomplete flag
+        chief_complaint: 'Unconscious / Triage Pending', // Populated for dashboard visibility
         facility_name: 'Emergency Triage',
         department: 'Trauma',
         provider_name: 'Triage Nurse',
