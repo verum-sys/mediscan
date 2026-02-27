@@ -523,7 +523,7 @@ export default function VisitDetail() {
                                         </div>
                                     </div>
                                     <p className="text-sm md:text-base text-muted-foreground line-clamp-1">
-                                        {visit.provider_name} • {visit.department}
+                                        {visit.provider_name === 'AI Triage Assistant' ? visit.patient_name : (visit.provider_name || 'Self-Intake')} • {visit.department}
                                     </p>
                                 </div>
                             )}
@@ -628,7 +628,7 @@ export default function VisitDetail() {
                     <p className="text-lg">{safeRender(visit.chief_complaint) || "Not specified"}</p>
                     <div className="mt-4 text-sm text-muted-foreground flex items-center gap-2">
                         <Activity className="h-4 w-4" />
-                        Provider: {visit.provider_name || "AI Triage Assistant"} • {new Date(visit.created_at).toLocaleString()}
+                        Provider: {visit.provider_name === 'AI Triage Assistant' ? visit.patient_name : (visit.provider_name || 'Self-Intake')} • {new Date(visit.created_at).toLocaleString()}
                     </div>
                 </Card>
 
