@@ -25,3 +25,4 @@ dist-ssr
 *.sw?
 .env
 DynamoDB-App-User_accessKeys.csv
+aws-global-audit.js
