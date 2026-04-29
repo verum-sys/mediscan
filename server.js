@@ -12,9 +12,24 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Configure CORS
+// Configure CORS — restrict to known origins in production, allow all in dev.
+// Set CORS_ALLOWED_ORIGINS in your environment as a comma-separated list
+// (e.g. "https://mediscan.example.com,https://staging.mediscan.example.com").
+// If the env var is unset we fall back to "*" so existing local/dev flows keep working.
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+
 app.use(cors({
-    origin: '*', // Allow all origins for now to fix connection issues
+    origin: allowedOrigins.length > 0
+        ? (origin, cb) => {
+            // Allow same-origin / server-to-server requests (no Origin header)
+            if (!origin) return cb(null, true);
+            if (allowedOrigins.includes(origin)) return cb(null, true);
+            return cb(new Error(`CORS: origin ${origin} not allowed`));
+        }
+        : '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -23,12 +38,6 @@ app.use(express.json());
 // Register clinical API routes
 app.use('/api', intakeRoutes); // Mount intake routes first to override legacy
 app.use('/api', clinicalRoutes);
-
-// Global error handler
-app.use((err, req, res, next) => {
-    console.error('Global Error Handler:', err);
-    res.status(500).json({ error: err.message || 'Internal Server Error', stack: process.env.NODE_ENV === 'development' ? err.stack : undefined });
-});
 
 // Configure Multer for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
@@ -401,8 +410,24 @@ async function createJWT(header, payload, privateKey) {
     }
 }
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+// Global error handler — must be registered AFTER all routes/middleware
+// so thrown errors in route handlers actually reach it.
+app.use((err, req, res, next) => {
+    console.error('Global Error Handler:', err);
+    res.status(500).json({
+        error: err.message || 'Internal Server Error',
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
 });
+
+// Only bind a TCP port when running as a standalone Node process.
+// On Vercel / other serverless platforms, the platform invokes the exported
+// `app` as a request handler — calling app.listen() there causes
+// EADDRINUSE / port-binding errors on every cold start.
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    app.listen(port, () => {
+        console.log(`Server running at http://localhost:${port}`);
+    });
+}
 
 export default app;

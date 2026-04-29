@@ -1,6 +1,7 @@
 
 import express from 'express';
 import * as service from '../services/dynamo.service.js';
+import { callLLM } from '../services/llm.js';
 
 const router = express.Router();
 
@@ -51,14 +52,11 @@ const parseLLMResponse = (content) => {
 // Patient Intake Chat Endpoint
 router.post('/patient-intake', async (req, res) => {
     try {
-        const { messages, currentData, language = 'en-US', pid } = req.body;
+        const { messages, currentData, language = 'en-US', pid } = req.body || {};
 
-        const llmApiKey = process.env.LLM_API_KEY;
-        const llmBaseUrl = process.env.LLM_BASE_URL || 'https://api.cerebras.ai/v1';
-        const llmModel = process.env.LLM_MODEL || 'llama3.1-8b';
-
-        if (!llmApiKey) {
-            return res.status(500).json({ error: 'LLM API key not configured' });
+        // Validate payload so malformed input can't crash the process.
+        if (!Array.isArray(messages)) {
+            return res.status(400).json({ error: 'messages must be an array' });
         }
 
         const languageNames = {
@@ -87,23 +85,49 @@ router.post('/patient-intake', async (req, res) => {
         const userReplyCount = Array.isArray(messages) ? messages.filter(m => m.role === 'user').length : 0;
         const mustConclude = userReplyCount >= 5;
 
-        const systemPrompt = `You are a friendly AI health assistant conducting a patient intake interview.
-        You MUST follow this STRICT Step-by-Step Protocol. Do not deviate. Ask EXACTLY 5 questions, no more.
+        // Map question numbers to their content so we can inject the EXACT next
+        // question into the prompt — leaving it to the LLM was unreliable
+        // (the model would acknowledge the answer and stop without asking next).
+        const questions = {
+            1: 'Ask for the patient\'s Name, Age, Gender, and Residential Area (all in this single message).',
+            2: 'Ask "What seems to be the problem today?" (the Chief Complaint).',
+            3: 'Ask about the Duration and Severity of the complaint, plus any specific characteristics.',
+            4: 'Ask about past Medical History — any chronic illnesses, prior surgeries, or hospitalizations.',
+            5: 'Ask about Current Medications and any known Allergies.'
+        };
 
-        QUESTION 1: Ask for Patient's Name, Age, Gender, and Residential Area (all in this single message).
-        QUESTION 2: Ask "What seems to be the problem today?" (Chief Complaint).
-        QUESTION 3: Ask about Duration and Severity of the complaint, plus any specific characteristics.
-        QUESTION 4: Ask about past Medical History (any chronic illnesses, prior surgeries, hospitalizations).
-        QUESTION 5: Ask about Current Medications and any known Allergies.
+        const nextQuestionNumber = userReplyCount + 1;
+        const nextQuestion = questions[nextQuestionNumber];
+
+        let stepInstruction;
+        if (mustConclude) {
+            stepInstruction = `The patient has now answered all 5 questions. YOU MUST DELIVER THE CONCLUSION. Do NOT ask any more questions. Set "is_complete": true.`;
+        } else if (userReplyCount === 0) {
+            stepInstruction = `This is the first message. Ask QUESTION 1: ${questions[1]} Set "is_complete": false.`;
+        } else {
+            stepInstruction = `The patient has answered ${userReplyCount} of 5 question(s). Briefly acknowledge their last reply (one short sentence), THEN in the SAME response ask QUESTION ${nextQuestionNumber}: ${nextQuestion} Your response MUST include the next question — never stop on just an acknowledgement. Set "is_complete": false.`;
+        }
+
+        const systemPrompt = `You are a friendly AI health assistant conducting a patient intake interview.
+        You MUST follow this STRICT Step-by-Step Protocol. Do not deviate. Ask EXACTLY 5 questions, no more, no fewer.
+
+        QUESTION 1: ${questions[1]}
+        QUESTION 2: ${questions[2]}
+        QUESTION 3: ${questions[3]}
+        QUESTION 4: ${questions[4]}
+        QUESTION 5: ${questions[5]}
         CONCLUSION (after the patient answers QUESTION 5):
            - Inform the patient: "Your Unique ID is ${pid}. Please proceed to Room 2, Floor 3. Waiting time is approx 10 mins."
            - Then say: "Thank you! I have all the information needed. Generating your summary now."
            - Set "is_complete": true.
 
+        CURRENT TURN INSTRUCTION:
+        ${stepInstruction}
+
         IMPORTANT RULES:
-        - The patient has replied ${userReplyCount} time(s) so far. ${mustConclude ? 'YOU MUST DELIVER THE CONCLUSION NOW. DO NOT ASK ANY MORE QUESTIONS. Set "is_complete": true.' : `Ask QUESTION ${userReplyCount + 1} next.`}
         - Never ask more than 5 questions in total. Never repeat a previous question.
-        - Move to the next question only after the current one is answered.
+        - After every patient reply (except the 5th), your response MUST end with the next question.
+        - Do NOT just confirm or acknowledge an answer without also asking the next question.
         - Respond ONLY in ${selectedLanguageName}.
         - Be warm and professional.
 
@@ -135,35 +159,14 @@ router.post('/patient-intake', async (req, res) => {
         
         Current collected data: ${JSON.stringify(currentData)}`;
 
-        const aiResponse = await fetch(`${llmBaseUrl}/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${llmApiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: llmModel,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    ...messages.map(m => ({ role: m.role, content: m.content }))
-                ],
-                response_format: { type: "json_object" }
-            })
+        // Try Gemini Pro → Gemini Flash → Llama (Cerebras), in order.
+        const llmResult = await callLLM({
+            system: systemPrompt,
+            messages: messages.map(m => ({ role: m.role, content: m.content })),
+            jsonMode: true,
         });
-
-        if (!aiResponse.ok) {
-            const errText = await aiResponse.text();
-            console.error('LLM API Error Detail:', {
-                status: aiResponse.status,
-                body: errText,
-                model: llmModel,
-                url: llmBaseUrl
-            });
-            throw new Error(`LLM API failed (${aiResponse.status}): ${errText.substring(0, 100)}`);
-        }
-
-        const aiResult = await aiResponse.json();
-        const content = aiResult.choices[0]?.message?.content || '{}';
+        console.log(`[intake] LLM provider: ${llmResult.provider} (${llmResult.model})`);
+        const content = llmResult.text || '{}';
 
         // Log RAW content to debug
         // console.log("RAW LLM OUTPUT:", content);
@@ -255,43 +258,32 @@ router.post('/patient-intake', async (req, res) => {
 // Submit Patient Intake Endpoint
 router.post('/patient-intake/submit', async (req, res) => {
     try {
-        const { patientData, conversation, pid } = req.body;
+        const { patientData, conversation, pid } = req.body || {};
 
-        const llmApiKey = process.env.LLM_API_KEY;
-        const llmBaseUrl = process.env.LLM_BASE_URL || 'https://api.cerebras.ai/v1';
-        const llmModel = process.env.LLM_MODEL || 'llama-3.3-70b';
+        // Validate payload shape so a malformed POST can't crash the process
+        // (e.g. `conversation.map` on undefined).
+        if (!patientData || typeof patientData !== 'object') {
+            return res.status(400).json({ error: 'patientData is required' });
+        }
+        if (!Array.isArray(conversation)) {
+            return res.status(400).json({ error: 'conversation must be an array' });
+        }
 
-        // 1. Generate High-Quality Summary via LLM
+        // 1. Generate High-Quality Summary via LLM (Gemini Pro → Flash → Llama)
         let summaryText = `[${new Date().toLocaleDateString()}] Patient completed self-intake.`;
 
         try {
             const conversationText = conversation.map(m => `${m.role}: ${m.content}`).join('\n');
-            const summaryResponse = await fetch(`${llmBaseUrl}/chat/completions`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${llmApiKey}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: llmModel,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: `Summarize the following medical intake conversation into EXACTLY 2 concise lines in ENGLISH. 
-                            Even if the conversation is in Hindi or another language, the summary MUST be in ENGLISH.
-                            Include: Name, Age, Gender, Chief Complaint (Translate to English), Symptom specifics, and History/Meds. 
-                            Start directly with the details.`
-                        },
-                        { role: 'user', content: conversationText }
-                    ]
-                })
+            const summaryResult = await callLLM({
+                system: `Summarize the following medical intake conversation into EXACTLY 2 concise lines in ENGLISH.
+                Even if the conversation is in Hindi or another language, the summary MUST be in ENGLISH.
+                Include: Name, Age, Gender, Chief Complaint (Translate to English), Symptom specifics, and History/Meds.
+                Start directly with the details.`,
+                messages: [{ role: 'user', content: conversationText }],
+                jsonMode: false,
             });
-
-            if (summaryResponse.ok) {
-                const summaryData = await summaryResponse.json();
-                const aiSummary = summaryData.choices[0]?.message?.content;
-                if (aiSummary) summaryText = `[${new Date().toLocaleDateString()}] ${aiSummary}`;
-            }
+            console.log(`[intake/submit] Summary provider: ${summaryResult.provider} (${summaryResult.model})`);
+            if (summaryResult.text) summaryText = `[${new Date().toLocaleDateString()}] ${summaryResult.text}`;
         } catch (e) {
             console.error("Summary generation failed", e);
         }

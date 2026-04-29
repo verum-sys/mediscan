@@ -412,6 +412,7 @@ export const addSymptoms = async (visitId, symptoms) => {
         confidence_score: s.confidenceScore,
         severity: s.severity,
         duration: s.duration,
+        onset: s.onset,
         source: s.source,
         raw_text: s.rawText,
         created_at: new Date().toISOString()
@@ -420,7 +421,8 @@ export const addSymptoms = async (visitId, symptoms) => {
     const { error } = await supabase.from('symptoms').insert(newSymptoms);
     if (error) {
         console.error("Error adding symptoms:", error);
-        return [];
+        // Surface the failure so callers don't silently lose clinical data.
+        throw error;
     }
     return newSymptoms;
 };
@@ -438,7 +440,8 @@ export const addMedications = async (visitId, medications) => {
     const { error } = await supabase.from('medications').insert(newMeds);
     if (error) {
         console.error("Error adding medications:", error);
-        return [];
+        // Surface the failure so callers don't silently lose medication data.
+        throw error;
     }
     return newMeds;
 };

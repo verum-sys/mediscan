@@ -22,6 +22,8 @@ export default function VoiceInput({
     const transcriptRef = useRef('');
     const autoSubmitRef = useRef(autoSubmit);
     const onTranscriptRef = useRef(onTranscript);
+    const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isMountedRef = useRef(true);
     const { toast } = useToast();
 
     // Keep refs in sync without recreating recognition
@@ -114,7 +116,13 @@ export default function VoiceInput({
         recognitionRef.current = recognition;
 
         return () => {
-            recognition.stop();
+            isMountedRef.current = false;
+            // recognition.stop() throws InvalidStateError if it was never started.
+            try { recognition.stop(); } catch { /* no-op */ }
+            if (autoSubmitTimerRef.current) {
+                clearTimeout(autoSubmitTimerRef.current);
+                autoSubmitTimerRef.current = null;
+            }
         };
     // Run only once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,7 +139,10 @@ export default function VoiceInput({
             description: "Analyzing your dictation with AI...",
         });
 
-        setTimeout(() => {
+        autoSubmitTimerRef.current = setTimeout(() => {
+            autoSubmitTimerRef.current = null;
+            // Avoid setting state after unmount
+            if (!isMountedRef.current) return;
             setIsProcessing(false);
             if (onProcessing) onProcessing(false);
             transcriptRef.current = '';

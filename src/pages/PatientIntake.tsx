@@ -110,6 +110,9 @@ export default function PatientIntake() {
     const chatEndRef = useRef<HTMLDivElement>(null);
     const messagesRef = useRef<Message[]>(messages);
     const handleSubmitRef = useRef<(text?: string) => void>(() => {});
+    // Guard against the auto-submit timer + manual "Summarize" button both firing,
+    // which would create two visits for the same intake.
+    const submittedRef = useRef(false);
 
     // Patient data
     const [patientData, setPatientData] = useState<PatientData>({
@@ -336,6 +339,11 @@ export default function PatientIntake() {
     };
 
     const submitToDoctor = async () => {
+        // Guard: the auto-submit useEffect timer and the manual button can both
+        // fire. Without this, two visits would be created.
+        if (submittedRef.current) return;
+        submittedRef.current = true;
+
         setIsProcessing(true);
         try {
             const response = await fetch(getApiUrl('/api/patient-intake/submit'), {
@@ -348,20 +356,31 @@ export default function PatientIntake() {
                 })
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                toast({
-                    title: "Submitted Successfully!",
-                    description: "Your information has been sent to the doctor.",
-                });
-                setTimeout(() => {
-                    navigate(`/visit/${data.visitId}`);
-                }, 2000);
+            if (!response.ok) {
+                let errMsg = `Server returned ${response.status}`;
+                try { errMsg = (await response.json()).error || errMsg; } catch { /* non-JSON body */ }
+                throw new Error(errMsg);
             }
-        } catch (error) {
+
+            const data = await response.json();
+            if (!data?.visitId) {
+                throw new Error('Server did not return a visit ID.');
+            }
+
+            toast({
+                title: "Submitted Successfully!",
+                description: "Your information has been sent to the doctor.",
+            });
+            setTimeout(() => {
+                navigate(`/visit/${data.visitId}`);
+            }, 2000);
+        } catch (error: any) {
+            console.error('Submission error:', error);
+            // Allow retry on failure
+            submittedRef.current = false;
             toast({
                 title: "Submission Failed",
-                description: "Please try again.",
+                description: error?.message || "Please try again.",
                 variant: "destructive"
             });
         } finally {
