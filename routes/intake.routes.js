@@ -151,11 +151,18 @@ router.post('/patient-intake', async (req, res) => {
         INSTRUCTIONS FOR DATA EXTRACTION:
         - Extract new information from the user's latest message.
         - Merge it with the known "Current collected data".
-        - CRITICAL: All extracted values (symptoms, history, etc.) MUST be translated to standard ENGLISH Medical Terms.
-        - Example: If user says "मुझे बुखार है" (Hindi), extract "symptoms": ["Fever"].
-        - Example: If user says "सूखी खांसी" (Hindi), extract "symptoms": ["Dry Cough"].
-        - "symptoms": List distinct symptoms mentioned.
-        - "medicalHistory": List past diseases.
+        - CRITICAL: ALL extracted values (chiefComplaint, symptoms, medicalHistory, currentMedications, allergies, gender) MUST be in standard ENGLISH medical terminology — NEVER in the patient's spoken language. The user may speak Hindi/Bengali/Tamil/etc., but every extracted clinical value MUST be translated to English before being placed in the JSON.
+        - Examples:
+            "मुझे बुखार है" -> "symptoms": ["Fever"]
+            "सूखी खांसी" -> "symptoms": ["Dry Cough"]
+            "जुकाम" -> "symptoms": ["Common Cold"]
+            "सिरदर्द" -> "symptoms": ["Headache"]
+            "पिछले 4 दिनों से खांसी जुकाम और बुखार" -> "chiefComplaint": "Cough, common cold, and fever for 4 days"
+            "पुरुष" -> "gender": "Male", "महिला" -> "gender": "Female"
+        - "name" should be left in its original script (proper noun).
+        - "symptoms": List distinct symptoms mentioned, each translated to its English medical term.
+        - "medicalHistory": List past diseases in English.
+        - If you cannot find a precise English equivalent, transliterate as a last resort.
         
         Current collected data: ${JSON.stringify(currentData)}`;
 
@@ -269,7 +276,39 @@ router.post('/patient-intake/submit', async (req, res) => {
             return res.status(400).json({ error: 'conversation must be an array' });
         }
 
-        // 1. Generate High-Quality Summary via LLM (Gemini Pro → Flash → Llama)
+        // 1. Force every clinical field to English regardless of intake language.
+        // The chat-time extraction is asked to translate, but LLMs sometimes
+        // preserve the source language when the user is fluent in it. This pass
+        // is the load-bearing guarantee that the visit record is in English.
+        let translatedData = patientData;
+        try {
+            const translationResult = await callLLM({
+                system: `You are a medical translator. Translate ALL values in the supplied JSON to standard ENGLISH medical terminology, regardless of the input language (Hindi, Bengali, etc.). Keep the JSON structure and field names identical. Do NOT add or remove fields.
+
+Rules:
+- "name": leave proper nouns as-is in their original script (do not transliterate names).
+- "gender": output "Male" / "Female" / "Other".
+- "chiefComplaint": translate to a concise English clinical phrase.
+- "symptoms", "medicalHistory", "currentMedications", "allergies": translate each array entry to its standard English medical term (e.g. "खांसी" -> "Cough", "बुखार" -> "Fever", "जुकाम" -> "Common Cold", "सिरदर्द" -> "Headache").
+- Numeric fields (age) stay numeric.
+- If a value is already English, return it unchanged.
+
+Return ONLY a JSON object with the same shape as the input.`,
+                messages: [{ role: 'user', content: JSON.stringify(patientData) }],
+                jsonMode: true,
+            });
+            console.log(`[intake/submit] Translation provider: ${translationResult.provider} (${translationResult.model})`);
+            const parsed = parseLLMResponse(translationResult.text);
+            if (parsed && typeof parsed === 'object') {
+                // Merge over the original so any field the model accidentally
+                // dropped still has its prior value as a backstop.
+                translatedData = { ...patientData, ...parsed };
+            }
+        } catch (e) {
+            console.error("English translation pass failed; saving original data:", e);
+        }
+
+        // 2. Generate High-Quality English Summary via LLM
         let summaryText = `[${new Date().toLocaleDateString()}] Patient completed self-intake.`;
 
         try {
@@ -288,28 +327,28 @@ router.post('/patient-intake/submit', async (req, res) => {
             console.error("Summary generation failed", e);
         }
 
-        // 2. Create Visit Record
+        // 3. Create Visit Record using the English-translated data
         const visitData = {
-            patientName: patientData.name || 'Unknown',
-            age: patientData.age || 0,
-            gender: patientData.gender || 'Unknown',
+            patientName: translatedData.name || 'Unknown',
+            age: translatedData.age || 0,
+            gender: translatedData.gender || 'Unknown',
             contactNumber: 'N/A',
-            chiefComplaint: patientData.chiefComplaint || patientData.symptoms?.[0] || 'Checkup',
+            chiefComplaint: translatedData.chiefComplaint || translatedData.symptoms?.[0] || 'Checkup',
             department: 'General Medicine',
-            providerName: patientData.name || 'Self-Intake',
+            providerName: translatedData.name || 'Self-Intake',
             triagePriority: 'Routine',
             assignedDoctorId: 'doc-123',
             status: 'waiting',
-            symptoms: patientData.symptoms || [],
+            symptoms: translatedData.symptoms || [],
             notes: summaryText,
             aiSummary: summaryText
         };
 
         const newVisit = await service.createVisit(visitData);
 
-        // 3. Persist Symptoms to DynamoDB
-        if (patientData.symptoms && patientData.symptoms.length > 0) {
-            await service.addSymptoms(newVisit.id, patientData.symptoms.map(s => ({
+        // 4. Persist Symptoms (in English) to DB
+        if (translatedData.symptoms && translatedData.symptoms.length > 0) {
+            await service.addSymptoms(newVisit.id, translatedData.symptoms.map(s => ({
                 text: s,
                 confidenceScore: 90,
                 severity: 'Moderate',
@@ -318,9 +357,9 @@ router.post('/patient-intake/submit', async (req, res) => {
             })));
         }
 
-        // 4. Persist Medications to DynamoDB
-        if (patientData.currentMedications && patientData.currentMedications.length > 0) {
-            await service.addMedications(newVisit.id, patientData.currentMedications.map(m => ({
+        // 5. Persist Medications (in English) to DB
+        if (translatedData.currentMedications && translatedData.currentMedications.length > 0) {
+            await service.addMedications(newVisit.id, translatedData.currentMedications.map(m => ({
                 name: m,
                 date: new Date().toLocaleDateString(),
                 source: 'patient_intake_ai'
