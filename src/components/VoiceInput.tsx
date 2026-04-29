@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -17,13 +17,18 @@ export default function VoiceInput({
     className = ''
 }: VoiceInputProps) {
     const [isListening, setIsListening] = useState(false);
-    const [transcript, setTranscript] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const recognitionRef = useRef<any>(null);
+    const transcriptRef = useRef('');
+    const autoSubmitRef = useRef(autoSubmit);
+    const onTranscriptRef = useRef(onTranscript);
     const { toast } = useToast();
 
+    // Keep refs in sync without recreating recognition
+    useEffect(() => { autoSubmitRef.current = autoSubmit; }, [autoSubmit]);
+    useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
+
     useEffect(() => {
-        // Check if browser supports Web Speech API
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
             toast({
                 title: "Voice Input Not Supported",
@@ -33,7 +38,6 @@ export default function VoiceInput({
             return;
         }
 
-        // Initialize Speech Recognition
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
 
@@ -54,23 +58,23 @@ export default function VoiceInput({
             let finalTranscript = '';
 
             for (let i = event.resultIndex; i < event.results.length; i++) {
-                const transcriptPiece = event.results[i][0].transcript;
+                const piece = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    finalTranscript += transcriptPiece + ' ';
+                    finalTranscript += piece + ' ';
                 } else {
-                    interimTranscript += transcriptPiece;
+                    interimTranscript += piece;
                 }
             }
 
-            // Update transcript in real-time
-            const fullTranscript = (transcript + finalTranscript).trim();
-            setTranscript(fullTranscript);
+            if (finalTranscript) {
+                transcriptRef.current = (transcriptRef.current + finalTranscript).trim();
+            }
 
-            // Send interim results to parent
+            const currentFull = transcriptRef.current;
             if (interimTranscript) {
-                onTranscript(fullTranscript + ' ' + interimTranscript);
+                onTranscriptRef.current(currentFull + ' ' + interimTranscript);
             } else if (finalTranscript) {
-                onTranscript(fullTranscript);
+                onTranscriptRef.current(currentFull);
             }
         };
 
@@ -102,8 +106,7 @@ export default function VoiceInput({
         recognition.onend = () => {
             setIsListening(false);
 
-            // Auto-submit if enabled and we have transcript
-            if (autoSubmit && transcript.trim()) {
+            if (autoSubmitRef.current && transcriptRef.current.trim()) {
                 handleAutoSubmit();
             }
         };
@@ -111,14 +114,14 @@ export default function VoiceInput({
         recognitionRef.current = recognition;
 
         return () => {
-            if (recognitionRef.current) {
-                recognitionRef.current.stop();
-            }
+            recognition.stop();
         };
-    }, [transcript, autoSubmit]);
+    // Run only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    const handleAutoSubmit = async () => {
-        if (!transcript.trim()) return;
+    const handleAutoSubmit = useCallback(() => {
+        if (!transcriptRef.current.trim()) return;
 
         setIsProcessing(true);
         if (onProcessing) onProcessing(true);
@@ -128,14 +131,12 @@ export default function VoiceInput({
             description: "Analyzing your dictation with AI...",
         });
 
-        // The transcript has already been sent via onTranscript
-        // This is just for UI feedback
         setTimeout(() => {
             setIsProcessing(false);
             if (onProcessing) onProcessing(false);
-            setTranscript('');
+            transcriptRef.current = '';
         }, 1000);
-    };
+    }, [onProcessing]);
 
     const toggleListening = () => {
         if (!recognitionRef.current) return;
@@ -144,10 +145,10 @@ export default function VoiceInput({
             recognitionRef.current.stop();
             toast({
                 title: "Stopped Listening",
-                description: transcript ? "Voice input captured successfully." : "No input detected.",
+                description: transcriptRef.current ? "Voice input captured successfully." : "No input detected.",
             });
         } else {
-            setTranscript('');
+            transcriptRef.current = '';
             recognitionRef.current.start();
         }
     };

@@ -97,38 +97,50 @@ export async function speakText(text: string, language: string = "hi", voiceId: 
         utterance.lang = language; // Pass full code (e.g. hi-IN)
         utterance.rate = 0.9;
 
-        // Smart Voice Selection
-        const voices = window.speechSynthesis.getVoices();
-        const baseLang = language.split('-')[0];
+        // getVoices() is async — voices may not be populated on first call.
+        // Wait for the voiceschanged event if the list is empty.
+        const buildAndSpeak = (voices: SpeechSynthesisVoice[]) => {
+            const baseLang = language.split('-')[0];
 
-        // Priority: Exact Match -> Base Lang + (Google/Edge/Natural) -> Base Lang
-        let preferredVoice = voices.find(v => v.lang === language) ||
-            voices.find(v => v.lang.startsWith(baseLang) && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Edge")));
+            // Priority: Exact Match -> Base Lang + (Google/Edge/Natural) -> Base Lang
+            let preferredVoice = voices.find(v => v.lang === language) ||
+                voices.find(v => v.lang.startsWith(baseLang) && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Edge")));
 
-        if (!preferredVoice) {
-            preferredVoice = voices.find(v => v.lang.startsWith(baseLang));
-        }
+            if (!preferredVoice) {
+                preferredVoice = voices.find(v => v.lang.startsWith(baseLang));
+            }
 
-        if (preferredVoice) {
-            utterance.voice = preferredVoice;
-            console.log(`🎙️ Using voice: ${preferredVoice.name}`);
-        }
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+                console.log(`🎙️ Using voice: ${preferredVoice.name}`);
+            }
 
-        // Return Mock Audio Element interface for compatibility
-        const mockAudio = {
-            play: async () => {
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(utterance);
-            },
-            set onended(callback: (() => void) | null) {
-                utterance.onend = callback ? () => callback() : null;
-            },
-            // Add other props if needed to prevent crashes
-            pause: () => window.speechSynthesis.cancel(),
-            currentTime: 0,
-            duration: 0
+            // Return Mock Audio Element interface for compatibility
+            const mockAudio = {
+                play: async () => {
+                    window.speechSynthesis.cancel();
+                    window.speechSynthesis.speak(utterance);
+                },
+                set onended(callback: (() => void) | null) {
+                    utterance.onend = callback ? () => callback() : null;
+                },
+                pause: () => window.speechSynthesis.cancel(),
+                currentTime: 0,
+                duration: 0
+            };
+
+            resolve(mockAudio as unknown as HTMLAudioElement);
         };
 
-        resolve(mockAudio as unknown as HTMLAudioElement);
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+            buildAndSpeak(voices);
+        } else {
+            // Voices not yet loaded — wait for the event then proceed
+            window.speechSynthesis.onvoiceschanged = () => {
+                window.speechSynthesis.onvoiceschanged = null;
+                buildAndSpeak(window.speechSynthesis.getVoices());
+            };
+        }
     });
 }

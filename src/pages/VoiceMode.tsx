@@ -20,14 +20,38 @@ export default function VoiceMode() {
     useEffect(() => {
         const greeting = "Hello! I'm ready to help you record patient symptoms. Please describe the patient's symptoms, medical history, or chief complaint. You can start speaking now.";
 
-        // Small delay to ensure speech synthesis is ready
-        setTimeout(() => {
+        const speakGreeting = () => {
+            const voices = window.speechSynthesis.getVoices();
+            // Prefer high-quality English voices over the system default (which can be robotic).
+            const preferred =
+                voices.find(v => v.lang.startsWith('en') && /Google US English/i.test(v.name)) ||
+                voices.find(v => v.lang.startsWith('en') && /Natural|Neural|Online/i.test(v.name)) ||
+                voices.find(v => v.lang.startsWith('en') && /Google/i.test(v.name)) ||
+                voices.find(v => v.lang.startsWith('en') && /Microsoft/i.test(v.name) && !/David|Mark|Zira/i.test(v.name)) ||
+                voices.find(v => v.lang.startsWith('en') && /Samantha|Karen|Daniel|Moira/i.test(v.name)) ||
+                voices.find(v => v.lang === 'en-US') ||
+                voices.find(v => v.lang.startsWith('en'));
+
             const utterance = new SpeechSynthesisUtterance(greeting);
-            utterance.rate = 0.9;
+            utterance.lang = preferred?.lang || 'en-US';
+            utterance.rate = 1;
             utterance.pitch = 1;
             utterance.volume = 1;
+            if (preferred) utterance.voice = preferred;
+
+            window.speechSynthesis.cancel();
             window.speechSynthesis.speak(utterance);
-        }, 500);
+        };
+
+        // getVoices() is async — wait for voices to load if list is empty.
+        if (window.speechSynthesis.getVoices().length > 0) {
+            setTimeout(speakGreeting, 300);
+        } else {
+            window.speechSynthesis.onvoiceschanged = () => {
+                window.speechSynthesis.onvoiceschanged = null;
+                speakGreeting();
+            };
+        }
 
         return () => {
             window.speechSynthesis.cancel();

@@ -109,6 +109,7 @@ export default function PatientIntake() {
     const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const messagesRef = useRef<Message[]>(messages);
+    const handleSubmitRef = useRef<(text?: string) => void>(() => {});
 
     // Patient data
     const [patientData, setPatientData] = useState<PatientData>({
@@ -124,15 +125,21 @@ export default function PatientIntake() {
         messagesRef.current = messages;
     }, [messages]);
 
-    // Auto-submit when complete
+    // Keep handleSubmitRef pointing at the latest handleSubmit so recognition callbacks never go stale
+    useEffect(() => {
+        handleSubmitRef.current = handleSubmit;
+    });
+
+    // Auto-submit when complete (after the 5th and final answer).
+    // Wait 20 seconds so the patient can read the conclusion message before redirect.
     useEffect(() => {
         if (isComplete) {
             toast({
                 title: "Interview Complete",
-                description: "Redirecting to your clinical report in 5 seconds...",
-                duration: 5000
+                description: "Generating your summary. Redirecting in 20 seconds...",
+                duration: 20000
             });
-            const timer = setTimeout(() => submitToDoctor(), 5000);
+            const timer = setTimeout(() => submitToDoctor(), 20000);
             return () => clearTimeout(timer);
         }
     }, [isComplete]);
@@ -157,7 +164,7 @@ export default function PatientIntake() {
         recognition.onresult = (event: any) => {
             const transcript = event.results[0][0].transcript;
             setInputText(transcript);
-            handleSubmit(transcript);
+            handleSubmitRef.current(transcript);
         };
 
         recognition.onerror = (event: any) => {
@@ -186,44 +193,43 @@ export default function PatientIntake() {
         let textToSpeak = text;
 
         const voices = window.speechSynthesis.getVoices();
-        // Try strict match first, then loose match (e.g. 'bn-IN' matches 'bn')
-        let languageVoice = voices.find(v => v.lang === targetLang) ||
-            voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+        const baseLang = targetLang.split('-')[0];
+
+        // Prefer high-quality voices first (Google / Natural / Neural / Edge).
+        // Falling through to any matching voice as a last resort prevents low-quality
+        // defaults like "Microsoft David" or eSpeak from being picked when better ones exist.
+        let languageVoice =
+            voices.find(v => v.lang === targetLang && /Google/i.test(v.name)) ||
+            voices.find(v => v.lang === targetLang && /Natural|Neural|Online/i.test(v.name)) ||
+            voices.find(v => v.lang.startsWith(baseLang) && /Google/i.test(v.name)) ||
+            voices.find(v => v.lang.startsWith(baseLang) && /Natural|Neural|Online/i.test(v.name)) ||
+            voices.find(v => v.lang.startsWith(baseLang) && /Microsoft/i.test(v.name) && !/David|Mark|Zira/i.test(v.name)) ||
+            voices.find(v => v.lang.startsWith(baseLang) && /Samantha|Karen|Daniel|Moira|Alex/i.test(v.name)) ||
+            voices.find(v => v.lang === targetLang) ||
+            voices.find(v => v.lang.startsWith(baseLang));
 
         // Debug
         // console.log(`Speaking in ${targetLang}. Found voice: ${languageVoice?.name}`);
 
         if (!languageVoice) {
-            // Special handling for Indian languages falling back to Hindi if available (experimental)
-            // But usually safer to fallback to English or silent.
-
             if (fallbackText) {
-                // We have a fallback (e.g. English greeting)
-                console.warn(`Voice for ${targetLang} not available. Fallback to English.`);
-                textToSpeak = fallbackText;
-                targetLang = 'en-US';
-                languageVoice = voices.find(v => v.lang.startsWith('en'));
-
+                console.warn(`Voice for ${targetLang} not available. Falling back to English.`);
                 toast({
                     title: "Language Voice Missing",
                     description: "Native voice not installed. Speaking in English.",
-                    variant: "default"
                 });
+                textToSpeak = fallbackText;
             } else {
-                // No fallback available (e.g. dynamic chat response)
-                // Do not speak to avoid gibberish
-                toast({
-                    title: "Voice Not Available",
-                    description: `Your device does not support TTS for ${targetLang}.`,
-                    variant: "destructive"
-                });
-                return;
+                // No explicit fallback — just speak the original text in English
+                console.warn(`Voice for ${targetLang} not available. Speaking in English.`);
             }
+            targetLang = 'en-US';
+            languageVoice = voices.find(v => v.lang.startsWith('en'));
         }
 
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(textToSpeak);
-        utterance.rate = 0.9;
+        utterance.rate = 1;
         utterance.pitch = 1;
         utterance.volume = 1;
         utterance.lang = targetLang;

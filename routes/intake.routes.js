@@ -82,20 +82,28 @@ router.post('/patient-intake', async (req, res) => {
 
         const selectedLanguageName = languageNames[language] || 'English';
 
-        const systemPrompt = `You are a friendly AI health assistant conducting a patient intake interview. 
-        You MUST follow this STRICT Step-by-Step Protocol. Do not deviate.
+        // Count how many times the patient has replied so far. The protocol allows
+        // EXACTLY 5 questions; after the 5th user reply we force the conclusion.
+        const userReplyCount = Array.isArray(messages) ? messages.filter(m => m.role === 'user').length : 0;
+        const mustConclude = userReplyCount >= 5;
 
-        STEP 1: Ask for Patient's Name, Age, Gender, and Residential Area (All in the first message).
-        STEP 2: Ask "What seems to be the problem today?" (Chief Complaint).
-        STEP 3: Ask for In-depth details about the problem (Duration, Severity, specific characteristics).
-        STEP 4: Ask about Medical History and Current Medications.
-        STEP 5: CONCLUSION. 
+        const systemPrompt = `You are a friendly AI health assistant conducting a patient intake interview.
+        You MUST follow this STRICT Step-by-Step Protocol. Do not deviate. Ask EXACTLY 5 questions, no more.
+
+        QUESTION 1: Ask for Patient's Name, Age, Gender, and Residential Area (all in this single message).
+        QUESTION 2: Ask "What seems to be the problem today?" (Chief Complaint).
+        QUESTION 3: Ask about Duration and Severity of the complaint, plus any specific characteristics.
+        QUESTION 4: Ask about past Medical History (any chronic illnesses, prior surgeries, hospitalizations).
+        QUESTION 5: Ask about Current Medications and any known Allergies.
+        CONCLUSION (after the patient answers QUESTION 5):
            - Inform the patient: "Your Unique ID is ${pid}. Please proceed to Room 2, Floor 3. Waiting time is approx 10 mins."
-           - Then say: "Thank you! I have all the information needed. You can now submit this to your doctor."
+           - Then say: "Thank you! I have all the information needed. Generating your summary now."
+           - Set "is_complete": true.
 
         IMPORTANT RULES:
-        - Analyze the "Current collected data" and conversation history to determine which STEP you are on.
-        - Move to the next step only after the current step is answered completely.
+        - The patient has replied ${userReplyCount} time(s) so far. ${mustConclude ? 'YOU MUST DELIVER THE CONCLUSION NOW. DO NOT ASK ANY MORE QUESTIONS. Set "is_complete": true.' : `Ask QUESTION ${userReplyCount + 1} next.`}
+        - Never ask more than 5 questions in total. Never repeat a previous question.
+        - Move to the next question only after the current one is answered.
         - Respond ONLY in ${selectedLanguageName}.
         - Be warm and professional.
 
@@ -172,7 +180,12 @@ router.post('/patient-intake', async (req, res) => {
             };
         }
 
-        const responseText = parsedResult.response || 'I apologize, could you please repeat that?';
+        let responseText = parsedResult.response || 'I apologize, could you please repeat that?';
+
+        // Strip PID if the LLM leaked it at the start of the response (before STEP 5)
+        if (pid && !parsedResult.is_complete) {
+            responseText = responseText.replace(new RegExp(`^\\s*${pid}[,\\s]*`), '');
+        }
 
         // Robust Merging Strategy
         const newData = parsedResult.extracted_data || {};
@@ -223,10 +236,14 @@ router.post('/patient-intake', async (req, res) => {
             updatedData.allergies = mergeArrays(updatedData.allergies, newData[allergiesKey]);
         }
 
+        // Hard cap: once the patient has answered 5 questions, the interview is over
+        // regardless of what the LLM decides. This guarantees the protocol is enforced.
+        const isComplete = mustConclude || parsedResult.is_complete || false;
+
         res.json({
             response: responseText,
             patientData: updatedData,
-            isComplete: parsedResult.is_complete || false
+            isComplete
         });
 
     } catch (error) {
