@@ -1,8 +1,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
-import { supabase, LLM_BASE_URL, LLM_API_KEY, LLM_MODEL, fetch } from './client.js';
+import { supabase } from './client.js';
 import { getVisit, updateVisit } from './visits.js';
 import { generateLabLogistics, generateMedicationLogistics } from './logistics.js';
+import { callLLM } from '../llm.js';
 
 export const generateDifferentials = async (visitId) => {
     let visitData;
@@ -23,25 +24,14 @@ export const generateDifferentials = async (visitId) => {
 `;
 
     try {
-        const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${LLM_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: LLM_MODEL,
-                messages: [
-                    {
-                        role: 'system',
-                        content: `You are a clinical diagnostic AI. Analyze the patient data and return a JSON array of differential diagnoses in ENGLISH.
-                        Output Format: [{ "rank": 1, "condition_name": "...", "confidence_score": 90, "rationale": "...", "suggested_investigations": ["..."] }]`
-                    },
-                    { role: 'user', content: context }
-                ],
-                response_format: { type: "json_object" }
-            })
+        const llm = await callLLM({
+            system: `You are a clinical diagnostic AI. Analyze the patient data and return a JSON array of differential diagnoses in ENGLISH.
+                    Output Format: [{ "rank": 1, "condition_name": "...", "confidence_score": 90, "rationale": "...", "suggested_investigations": ["..."] }]`,
+            messages: [{ role: 'user', content: context }],
+            jsonMode: true,
         });
-
-        const result = await response.json();
-        let content = result.choices[0]?.message?.content || "{}";
+        console.log(`[ddx] LLM provider: ${llm.provider} (${llm.model})`);
+        const content = llm.text || "{}";
         let differentials = [];
 
         try {
@@ -129,28 +119,21 @@ Analyze the provided symptoms and generate **ONE** high-yield follow-up inquiry.
                 "new_history": ["history1"]
 }`;
 
-        const finalMessages = hasSystemPrompt ? messages : [
-            { role: 'system', content: systemPrompt },
-            ...messages
-        ];
+        // If the caller already supplied a system message, keep their prompt;
+        // otherwise inject our default. callLLM accepts an explicit `system`,
+        // so we filter system messages out of `messages` to avoid duplication.
+        const effectiveSystem = hasSystemPrompt
+            ? messages.find(m => m.role === 'system').content
+            : systemPrompt;
+        const userAssistantMessages = messages.filter(m => m.role !== 'system');
 
-        if (!LLM_API_KEY) {
-            return { message: "System Error: AI API Key is missing.", new_symptoms: [], new_medications: [], new_history: [] };
-        }
-
-        const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${LLM_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: LLM_MODEL, messages: finalMessages })
+        const llm = await callLLM({
+            system: effectiveSystem,
+            messages: userAssistantMessages,
+            jsonMode: true,
         });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`LLM API Failed: ${response.status} ${errorText}`);
-        }
-
-        const data = await response.json();
-        const content = data.choices[0]?.message?.content;
+        console.log(`[chatWithAI] LLM provider: ${llm.provider} (${llm.model})`);
+        const content = llm.text;
 
         try {
             let cleanContent = content.trim();
@@ -194,34 +177,21 @@ export const generateClinicalAnalysis = async (visitId) => {
     `;
 
     try {
-        const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${LLM_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: LLM_MODEL,
-                messages: [
-                    {
-                        role: 'system',
-                        content: `You are a clinical decision support AI. Analyze the patient data and return a JSON response with:
-                        1. patient_analysis: { Age, Sex, Chief_Complaint, Symptoms, Treatment_Plan, Effectiveness_Prediction, Notes }
-                        2. medications: [{ Name, Type, Dosage, Duration, Frequency }]
-                        3. investigative_suggestions: [{ Test_Name, Type (Essential/Optional), Ruled_Out_Test, Confidence_Score }]
+        const llm = await callLLM({
+            system: `You are a clinical decision support AI. Analyze the patient data and return a JSON response with:
+                    1. patient_analysis: { Age, Sex, Chief_Complaint, Symptoms, Treatment_Plan, Effectiveness_Prediction, Notes }
+                    2. medications: [{ Name, Type, Dosage, Duration, Frequency }]
+                    3. investigative_suggestions: [{ Test_Name, Type (Essential/Optional), Ruled_Out_Test, Confidence_Score }]
 
-                        Infer missing details like Age/Sex from context if possible, or mark as "Unknown".
-                        For 'medications', extract all drugs mentioned in the patient notes, medical history, or recommended in the treatment plan.
-                        IMPORTANT: Translate ALL output values to ENGLISH.
-                        Return ONLY valid JSON.`
-                    },
-                    { role: 'user', content: context }
-                ],
-                response_format: { type: "json_object" }
-            })
+                    Infer missing details like Age/Sex from context if possible, or mark as "Unknown".
+                    For 'medications', extract all drugs mentioned in the patient notes, medical history, or recommended in the treatment plan.
+                    IMPORTANT: Translate ALL output values to ENGLISH.
+                    Return ONLY valid JSON.`,
+            messages: [{ role: 'user', content: context }],
+            jsonMode: true,
         });
-
-        if (!response.ok) throw new Error(`LLM API Error: ${response.statusText}`);
-
-        const result = await response.json();
-        let content = result.choices[0]?.message?.content || "{}";
+        console.log(`[clinical-analysis] LLM provider: ${llm.provider} (${llm.model})`);
+        const content = llm.text || "{}";
 
         let cleanContent = content.trim();
         if (cleanContent.startsWith('```')) {
@@ -313,29 +283,16 @@ Clinical Notes: ${visit.visit_notes || 'None'}
 Based on this information, provide ICD-10 and SNOMED CT codes.
         `;
 
-        const response = await fetch(`${LLM_BASE_URL}/chat/completions`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${LLM_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: LLM_MODEL,
-                messages: [
-                    {
-                        role: 'system',
-                        content: `You are a medical coding AI assistant. Analyze the patient data and return ICD-10 and SNOMED CT codes.
+        const llm = await callLLM({
+            system: `You are a medical coding AI assistant. Analyze the patient data and return ICD-10 and SNOMED CT codes.
 Output Format (JSON):
 { "classifications": [{ "icd_code": "J18.9", "icd_description": "...", "snomed_code": "...", "snomed_description": "...", "confidence_score": 85 }] }
-Return ONLY valid JSON. Provide 1-3 most relevant codes.`
-                    },
-                    { role: 'user', content: context }
-                ],
-                response_format: { type: "json_object" }
-            })
+Return ONLY valid JSON. Provide 1-3 most relevant codes.`,
+            messages: [{ role: 'user', content: context }],
+            jsonMode: true,
         });
-
-        if (!response.ok) throw new Error(`LLM API Error: ${response.statusText}`);
-
-        const result = await response.json();
-        let content = result.choices[0]?.message?.content || "{}";
+        console.log(`[classifications] LLM provider: ${llm.provider} (${llm.model})`);
+        const content = llm.text || "{}";
 
         let cleanContent = content.trim();
         if (cleanContent.startsWith('```')) cleanContent = cleanContent.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
